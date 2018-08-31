@@ -6,6 +6,8 @@
 %global with_tests 0
 # Build test binaries
 %global with_test_binaries 0
+#Build stripped binaries
+%global with_stripped_binaries 1
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -13,7 +15,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 465a813327dc88016e28d3bb9fb37188eb43e3f0
+%global git_commit 27c2e1d138485e1b81a9719842b485132ed744d7
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +30,7 @@
 
 Name:           istio-operator
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        4%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -68,12 +70,22 @@ cd src/github.com/maistra/istio-operator/tmp/build/
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 cd OPERATOR/src/github.com/maistra/istio-operator/tmp/build/
-echo "CURRENT PATH" $(pwd)
-cp -pav tmp/_output/bin/istio-operator $RPM_BUILD_ROOT%{_bindir}/
+
+cd tmp/_output/bin/ 
+%if 0%{?with_stripped_binaries}
+    mkdir stripped
+    strip -o stripped/istio-operator -s istio-operator
+    cp -pav stripped/istio-operator $RPM_BUILD_ROOT%{_bindir}/
+%else
+    cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
+%endif
 
 %files
 %{_bindir}/istio-operator
 
 %changelog
+* Fri Aug 31 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+- Stripped binaries
+
 * Tue Aug 14 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
 - First package
