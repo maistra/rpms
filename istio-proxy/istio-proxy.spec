@@ -2,6 +2,8 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
+#Build stripped binaries
+%global with_stripped_binaries 1
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -9,7 +11,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 6166ae7ebac7f630206b2fe4e6767516bf198313 
+%global git_commit 2656f34080413d3aec444aa659cc78057508c57b 
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -21,7 +23,7 @@
 
 Name:           istio-proxy
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -85,7 +87,14 @@ FETCH_DIR= CREATE_ARTIFACTS= %{SOURCE1}
 rm -rf $RPM_BUILD_ROOT
 mkdir -p ${RPM_BUILD_ROOT}/usr/local/bin
 
-cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
+cd $RPM_BUILD_DIR
+%if 0%{?with_stripped_binaries}
+    mkdir stripped
+    strip -o stripped/envoy -s envoy
+    cp -pav stripped/envoy ${RPM_BUILD_ROOT}/usr/local/bin
+%else
+    cp -pav envoy ${RPM_BUILD_ROOT}/usr/local/bin
+%endif
 
 %check
 cd ..
@@ -95,6 +104,8 @@ RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
+- Updated to Istio 1.0.1 and stripped binaries
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
 - Release 0.1.0-1
 * Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>

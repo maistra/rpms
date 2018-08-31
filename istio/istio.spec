@@ -6,6 +6,8 @@
 %global with_tests 0
 # Build test binaries
 %global with_test_binaries 0
+#Build stripped binaries
+%global with_stripped_binaries 1
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -13,7 +15,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 3a136c90ec5e308f236e0d7ebb5c4c5e405217f4
+%global git_commit a9059bf784a9b372b0efed9309d4c6e7fea5b915
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -29,7 +31,7 @@
 
 Name:           istio
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -395,7 +397,24 @@ popd
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
-cp -pav ISTIO/out/linux_amd64/release/{pilot-discovery,pilot-agent,istioctl,sidecar-injector,mixs,mixc,istio_ca,galley} $RPM_BUILD_ROOT%{_bindir}/
+binaries=(pilot-discovery pilot-agent istioctl sidecar-injector mixs mixc istio_ca galley)
+pushd .
+echo pwd $(pwd)
+cd ISTIO/out/linux_amd64/release
+%if 0%{?with_stripped_binaries}
+mkdir stripped
+
+for i in "${binaries[@]}"; do
+        echo stripping: $i
+        strip -o stripped/$i -s $i
+        cp -pav stripped/$i $RPM_BUILD_ROOT%{_bindir}/
+done
+%else 
+    for i in "${binaries[@]}"; do
+        cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+%endif
+popd
+
 
 %if 0%{?with_test_binaries}
 cp -pav ISTIO/out/linux_amd64/release/{pilot-test-server,pilot-test-client,pilot-test-eurekamirror} $RPM_BUILD_ROOT%{_bindir}/
@@ -481,6 +500,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Fri Aug 31 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+- Updated to Istio 1.0.1, updated Grafana to fix security issue, and stripped binaries
+
 * Tue Jul 24 2018 Brian Avery <bavery@redhat.com> - 1.0.0
 - Updated to 1.0.0-snapshot.2
 
