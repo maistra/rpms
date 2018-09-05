@@ -9,7 +9,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 6166ae7ebac7f630206b2fe4e6767516bf198313 
+%global git_commit 6166ae7ebac7f630206b2fe4e6767516bf198313
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -85,8 +85,6 @@ FETCH_DIR= CREATE_ARTIFACTS= %{SOURCE1}
 rm -rf $RPM_BUILD_ROOT
 mkdir -p ${RPM_BUILD_ROOT}/usr/local/bin
 
-cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
-
 cd ${RPM_BUILD_DIR}
 %if 0%{?with_debug}
     cp -pav envoy ${RPM_BUILD_ROOT}/usr/local/bin
@@ -103,10 +101,10 @@ RUN_TESTS=true %{SOURCE2}
 %files
 /usr/local/bin/envoy
 
-%changelog* 
-Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+%changelog
+* Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
 - Stripped binaries
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
 - Release 0.1.0-1
 * Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>
-- First package 
+- First package
