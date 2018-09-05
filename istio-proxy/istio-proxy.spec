@@ -87,6 +87,15 @@ mkdir -p ${RPM_BUILD_ROOT}/usr/local/bin
 
 cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
 
+cd ${RPM_BUILD_DIR}
+%if 0%{?with_debug}
+    cp -pav envoy ${RPM_BUILD_ROOT}/usr/local/bin
+%else
+    mkdir stripped
+    strip -o stripped/envoy -s envoy
+    cp -pav stripped/envoy ${RPM_BUILD_ROOT}/usr/local/bin
+%endif
+
 %check
 cd ..
 RUN_TESTS=true %{SOURCE2}
@@ -94,7 +103,9 @@ RUN_TESTS=true %{SOURCE2}
 %files
 /usr/local/bin/envoy
 
-%changelog
+%changelog* 
+Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+- Stripped binaries
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
 - Release 0.1.0-1
 * Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>
