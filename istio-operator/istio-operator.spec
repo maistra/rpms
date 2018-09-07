@@ -28,7 +28,7 @@
 
 Name:           istio-operator
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        4%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -68,12 +68,22 @@ cd src/github.com/maistra/istio-operator/tmp/build/
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 cd OPERATOR/src/github.com/maistra/istio-operator/tmp/build/
-echo "CURRENT PATH" $(pwd)
-cp -pav tmp/_output/bin/istio-operator $RPM_BUILD_ROOT%{_bindir}/
+
+cd tmp/_output/bin/
+%if 0%{?with_debug}
+    cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
+%else
+    mkdir stripped
+    strip -o stripped/istio-operator -s istio-operator
+    cp -pav stripped/istio-operator $RPM_BUILD_ROOT%{_bindir}/
+%endif
 
 %files
 %{_bindir}/istio-operator
 
 %changelog
+* Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+- Stripped binaries
+
 * Tue Aug 14 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
 - First package

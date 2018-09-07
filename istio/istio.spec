@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -395,7 +395,21 @@ popd
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
-cp -pav ISTIO/out/linux_amd64/release/{pilot-discovery,pilot-agent,istioctl,sidecar-injector,mixs,mixc,istio_ca,galley} $RPM_BUILD_ROOT%{_bindir}/
+binaries=(pilot-discovery pilot-agent istioctl sidecar-injector mixs mixc istio_ca galley)
+pushd .
+cd ISTIO/out/linux_amd64/release
+%if 0%{?with_debug}
+    for i in "${binaries[@]}"; do
+        cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+%else
+    mkdir stripped
+    for i in "${binaries[@]}"; do
+        echo stripping: $i
+        strip -o stripped/$i -s $i
+        cp -pav stripped/$i $RPM_BUILD_ROOT%{_bindir}/
+    done
+%endif
+popd
 
 %if 0%{?with_test_binaries}
 cp -pav ISTIO/out/linux_amd64/release/{pilot-test-server,pilot-test-client,pilot-test-eurekamirror} $RPM_BUILD_ROOT%{_bindir}/
@@ -481,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+- Stripped binaries
+
 * Tue Jul 24 2018 Brian Avery <bavery@redhat.com> - 1.0.0
 - Updated to 1.0.0-snapshot.2
 
