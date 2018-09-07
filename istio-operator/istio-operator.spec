@@ -28,7 +28,7 @@
 
 Name:           istio-operator
 Version:        0.1.0
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
