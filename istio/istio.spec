@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.1.1
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
