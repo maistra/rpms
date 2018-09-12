@@ -9,7 +9,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 6166ae7ebac7f630206b2fe4e6767516bf198313
+%global git_commit 99cfc3f74c414dd4fa4aa784a0f8b13e22b81893 
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -20,7 +20,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-proxy
-Version:        0.1.0
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
@@ -40,6 +40,7 @@ BuildRequires:  automake
 BuildRequires:  autoconf
 BuildRequires:  m4
 BuildRequires:  perl
+BuildRequires:  binutils
 
 %if 0%{?centos} >= 7
 BuildRequires:  cmake3
@@ -93,6 +94,7 @@ cd ${RPM_BUILD_DIR}
     strip -o stripped/envoy -s envoy
     cp -pav stripped/envoy ${RPM_BUILD_ROOT}/usr/local/bin
 %endif
+cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
 
 %check
 cd ..
@@ -102,9 +104,9 @@ RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
-* Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
-- Stripped binaries
+* Wed Sep 12 2018 Dmitri Dolguikh <ddolguik@redhat.com>
+  Release 0.2.0-1
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
 - Release 0.1.0-1
 * Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>
-- First package
+- First package 
