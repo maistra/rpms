@@ -46,7 +46,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${RPM_SOURCE_DIR}" ]; then
-    RPM_SOURCE_DIR=.
+    RPM_SOURCE_DIR=$(pwd)
   fi
 
   if [ -z "${FETCH_OR_BUILD}" ]; then
@@ -117,7 +117,7 @@ function prune() {
   pushd ${FETCH_DIR}/istio-proxy
     rm -rf bazel/base/execroot
     rm -rf bazel/root/cache
-    find . -name "*.o" | xargs rm 
+    find . -name "*.o" | xargs rm
   popd
 
 }
@@ -165,23 +165,27 @@ function add_cxx_params(){
   popd
 }
 
+function copy_bazel_build_status(){
+  cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${FETCH_DIR}/istio-proxy/proxy/tools/bazel_get_workspace_status
+}
+
 function patch_python(){
   pushd ${FETCH_DIR}/istio-proxy
-    sed -i 's|srcs = \["context.proto"\],|srcs = \["context.proto"\], external_deps = \[\], generate_python = False,|g' ./proxy/src/istio/authn/BUILD
+    sed -i 's|srcs = \["context.proto"\],|srcs = \["context.proto"\], generate_python = False,|g' ./proxy/src/istio/authn/BUILD
   popd
 }
 
 function fetch() {
   if [ ! -d "${FETCH_DIR}/istio-proxy" ]; then
     mkdir -p ${FETCH_DIR}/istio-proxy
-    
+
     pushd ${FETCH_DIR}/istio-proxy
 
       #clone proxy
       if [ ! -d "proxy" ]; then
-        git clone ${PROXY_GIT_REPO} --branch ${PROXY_GIT_BRANCH}
+        git clone ${PROXY_GIT_REPO}
         pushd ${FETCH_DIR}/istio-proxy/proxy
-#          git checkout ${PROXY_GIT_BRANCH}
+        git checkout ${PROXY_GIT_BRANCH}
           if [ -d ".git" ]; then
             SHA="$(git rev-parse --verify HEAD)"
           fi
@@ -189,6 +193,7 @@ function fetch() {
 
         add_cxx_params
         patch_python
+        copy_bazel_build_status
       fi
 
       if [ ! "$FETCH_ONLY" = "true" ]; then
@@ -221,7 +226,7 @@ function fetch() {
         bazel_dir="bazelorig"
       fi
 
-      if [ ! -d "${bazel_dir}" ]; then 
+      if [ ! -d "${bazel_dir}" ]; then
         set_path
 
         pushd ${FETCH_DIR}/istio-proxy/proxy
@@ -283,5 +288,4 @@ function add_cxx_params(){
 preprocess_envs
 fetch
 add_path_markers
-add_cxx_params
 create_tarball
