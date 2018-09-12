@@ -86,14 +86,6 @@ FETCH_DIR= CREATE_ARTIFACTS= %{SOURCE1}
 rm -rf $RPM_BUILD_ROOT
 mkdir -p ${RPM_BUILD_ROOT}/usr/local/bin
 
-cd ${RPM_BUILD_DIR}
-%if 0%{?with_debug}
-    cp -pav envoy ${RPM_BUILD_ROOT}/usr/local/bin
-%else
-    mkdir stripped
-    strip -o stripped/envoy -s envoy
-    cp -pav stripped/envoy ${RPM_BUILD_ROOT}/usr/local/bin
-%endif
 cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
 
 %check
