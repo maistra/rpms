@@ -117,7 +117,7 @@ function prune() {
   pushd ${FETCH_DIR}/istio-proxy
     rm -rf bazel/base/execroot
     rm -rf bazel/root/cache
-    find . -name "*.o" | xargs rm 
+    find . -name "*.o" | xargs rm
   popd
 
 }
@@ -174,14 +174,14 @@ function patch_python(){
 function fetch() {
   if [ ! -d "${FETCH_DIR}/istio-proxy" ]; then
     mkdir -p ${FETCH_DIR}/istio-proxy
-    
+
     pushd ${FETCH_DIR}/istio-proxy
 
       #clone proxy
       if [ ! -d "proxy" ]; then
-        git clone ${PROXY_GIT_REPO} --branch ${PROXY_GIT_BRANCH}
+        git clone ${PROXY_GIT_REPO}
         pushd ${FETCH_DIR}/istio-proxy/proxy
-#          git checkout ${PROXY_GIT_BRANCH}
+        git checkout ${PROXY_GIT_BRANCH}
           if [ -d ".git" ]; then
             SHA="$(git rev-parse --verify HEAD)"
           fi
@@ -221,7 +221,7 @@ function fetch() {
         bazel_dir="bazelorig"
       fi
 
-      if [ ! -d "${bazel_dir}" ]; then 
+      if [ ! -d "${bazel_dir}" ]; then
         set_path
 
         pushd ${FETCH_DIR}/istio-proxy/proxy
