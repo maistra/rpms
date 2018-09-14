@@ -1,4 +1,4 @@
-set -x 
+set -x
 set -e
 
 function set_default_envs() {
@@ -67,7 +67,11 @@ function run_build() {
     sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/cc_wrapper.sh
     sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/CROSSTOOL
 
-    RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch build --config=${BUILD_CONFIG} "//..."
+    if [ "${BUILD_CONFIG}" == 'debug' ]; then
+      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch build -c dbg "//..."
+    else
+      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch build --config=${BUILD_CONFIG} "//..."
+    fi
 
   popd
 }
@@ -75,14 +79,24 @@ function run_build() {
 function create_artifacts() {
   if [ "${CREATE_ARTIFACTS}" == "true" ]; then
     pushd ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
-      mkdir -p usr/local/bin  
+      mkdir -p usr/local/bin
       cp istio-proxy/proxy/bazel-bin/src/envoy/envoy usr/local/bin/envoy
       cp istio-proxy/proxy/bazel-bin/src/envoy/envoy envoy
       tar -cvf envoy-${TARBALL_SUFFIX}-${SHA}.tar usr
       gzip envoy-${TARBALL_SUFFIX}-${SHA}.tar
+      sha256sum "envoy-${TARBALL_SUFFIX}-${SHA}.tar.gz" > "envoy-${TARBALL_SUFFIX}-${SHA}.sha256"
 
-      if [ -n ${JENKINS_HOST} ]; then
-        scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $HOME/.ssh/id_rsa envoy-${TARBALL_SUFFIX}-${SHA}.tar.gz ${JENKINS_HOST}:/usr/share/nginx/html/istio-build/proxy/
+      if [ ${COPY_ARTIFACTS} = "true" ]; then
+        if [ -z "${ARTIFACTS_REMOTE_HOST}" ]; then
+          echo "You have to set ARTIFACTS_REMOTE_HOST variable"
+          exit 1
+        fi
+        if [ -z "${ARTIFACTS_REMOTE_FOLDER}" ]; then
+          echo "You have to set ARTIFACTS_REMOTE_FOLDER variable"
+          exit 1
+        fi
+        scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $HOME/.ssh/id_rsa envoy-${TARBALL_SUFFIX}-${SHA}.tar.gz ${ARTIFACTS_REMOTE_HOST}:${ARTIFACTS_REMOTE_FOLDER}
+        scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i $HOME/.ssh/id_rsa envoy-${TARBALL_SUFFIX}-${SHA}.sha256 ${ARTIFACTS_REMOTE_HOST}:${ARTIFACTS_REMOTE_FOLDER}
       fi
     popd
   fi

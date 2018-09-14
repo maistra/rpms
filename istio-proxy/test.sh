@@ -1,4 +1,4 @@
-set -x 
+set -x
 set -e
 
 function set_default_envs() {
@@ -36,7 +36,12 @@ function run_tests() {
           sed -i 's|TEST_F|TEST|g' src/istio/mixerclient/check_cache_test.cc
         fi
 
-        bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch test --config=${BUILD_CONFIG} "//..."
+        if [ "${BUILD_CONFIG}" == 'debug' ]; then
+          bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch test -c dbg "//..."
+        else
+          bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root --batch test --config=${BUILD_CONFIG} "//..."
+        fi
+
       fi
     popd
   fi
