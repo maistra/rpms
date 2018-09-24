@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit c8dbfbbfe0202eec24f31a85618274e35634cf86
+%global git_commit 827207e9b72b9074e492a1f9ae73321cea51cde0
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +28,7 @@
 
 Name:           istio-operator
 Version:        0.2.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
