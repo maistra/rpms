@@ -171,7 +171,7 @@ function copy_bazel_build_status(){
 
 function patch_python(){
   pushd ${FETCH_DIR}/istio-proxy
-    sed -i 's|srcs = \["context.proto"\],|srcs = \["context.proto"\], generate_python = False,|g' ./proxy/src/istio/authn/BUILD
+    sed -i 's|srcs = \["context.proto"\],|srcs = \["context.proto"\], require_py=0,|g' ./proxy/src/istio/authn/BUILD
   popd
 }
 
