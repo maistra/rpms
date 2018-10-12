@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.2.0
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -495,7 +495,10 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Wed Sep 12 2018 Brian Avery <bavery@redhat.com> - 0.1.1
+* Fri Oct 12 2018 Brian Avery <bavery@redhat.com> - 0.3.0
+- Rebuilt Istio 1.0.2 for maistra 0.3.3 release
+
+* Wed Sep 12 2018 Brian Avery <bavery@redhat.com> - 0.2.0
 - Updated to istio 1.0.2 and maistra 0.1.1
 
 * Tue Sep 4 2018 Brian Avery <bavery@redhat.com> - 0.1.0
