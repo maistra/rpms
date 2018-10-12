@@ -22,7 +22,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${RECIPES_GIT_BRANCH}" ]; then
-    RECIPES_GIT_BRANCH=maistra-0.3.0
+    RECIPES_GIT_BRANCH=maistra-0.3
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
