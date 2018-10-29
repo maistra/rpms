@@ -50,7 +50,7 @@ BuildRequires:  llvm-toolset-7-runtime
 BuildRequires:  llvm-toolset-7-cmake-data
 %endif
 
-Source0:        proxy-full-%{version}%{?dist}.tar.xz
+Source0:        proxy-full-%{version}.tar.xz
 Source1:        build.sh
 Source2:        test.sh
 Source3:        fetch.sh
