@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit e5c0c8b81e04cf0431c413198eaf7b6595071ed3
+%global git_commit 7bf1a9444d23d71997b54bb1e31c8358e25214ec
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -27,8 +27,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        0.2.0
-Release:        4%{?dist}
+Version:        0.4.0
+Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -82,8 +82,17 @@ cd tmp/_output/bin/
 %{_bindir}/istio-operator
 
 %changelog
-* Tue Sep 4 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+* Wed Oct 31 2018 Kevin Conner <kconner@redhat.com> - 0.4.0
+- Updated to 0.4.0
+
+* Wed Oct 17 2018 Kevin Conner <kconner@redhat.com> - 0.3.0
+- Updated to 0.3.0
+
+* Fri Oct 12 2018 Brian Avery <bavery@redhat.com> - 0.3.0
+- Added 0.3.0
+
+* Tue Sep 4 2018 Brian Avery <bavery@redhat.com> - 0.1.0
 - Stripped binaries
 
-* Tue Aug 14 2018 Brian Avery <brian.avery@redhat.com> - 0.1.0
+* Tue Aug 14 2018 Brian Avery <bavery@redhat.com> - 0.1.0
 - First package
