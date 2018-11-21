@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit a44d4c8bcb427db16ca4a439adfbd8d9361b8ed3
+%global git_commit d5cb99f479ad9da88eebb8bb3637b17c323bc50b
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Wed Nov 21 2018 Brian Avery <bavery@redhat.com> - 0.5.0
+- Release update to maistra 0.5.0-1
+
 * Mon Nov 19 2018 Brian Avery <bavery@redhat.com> - 0.5.0
 - Updated to istio 1.0.3 and maistra 0.5.0
 
