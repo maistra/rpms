@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.5.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Fri Nov 23 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
+- Release update to maistra 0.5.0-2
+
 * Wed Nov 21 2018 Brian Avery <bavery@redhat.com> - 0.5.0
 - Release update to maistra 0.5.0-1
 
