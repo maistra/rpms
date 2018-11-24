@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit d5cb99f479ad9da88eebb8bb3637b17c323bc50b
+%global git_commit 1bb099e11ea7415000306f020a88d0b3551aa946
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.5.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Sat Nov 24 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
+- Update to include fix for RDS protocol race
+
 * Fri Nov 23 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
 - Release update to maistra 0.5.0-2
 
