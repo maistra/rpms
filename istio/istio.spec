@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 24ea83ba1fc77b2caaf61ff5ff0f8b3a7ca87fae
+%global git_commit d6aebe7d3709eb45ed9b967798e246dbb6f984c5
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,8 +28,8 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.5.0
-Release:        4%{?dist}
+Version:        0.6.0
+Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Wed Dec 19 2018 Kevin Conner <kconner@redhat.com> - 0.6.0
+- Updated to istio 1.0.5 and maistra 0.6.0
+
 * Thu Nov 29 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
 - Update to include support for envoy route update requests
 
