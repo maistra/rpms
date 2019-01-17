@@ -495,7 +495,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Mon Thu 17 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-1
+* Thu Jan 17 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-1
 - Updated to istio release-1.1 branch and maistra 0.7.0
 
 * Wed Dec 19 2018 Kevin Conner <kconner@redhat.com> - 0.6.0
