@@ -14,7 +14,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.6
+    PROXY_GIT_BRANCH=maistra-0.7
   fi
 
   if [ -z "${RECIPES_GIT_REPO}" ]; then
@@ -22,7 +22,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${RECIPES_GIT_BRANCH}" ]; then
-    RECIPES_GIT_BRANCH=maistra-0.6
+    RECIPES_GIT_BRANCH=maistra-0.7
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
@@ -52,6 +52,10 @@ function set_default_envs() {
   if [ -z "${FETCH_OR_BUILD}" ]; then
     FETCH_OR_BUILD=fetch
   fi
+
+  if [ -z "${BUILD_SCM_REVISION}" ]; then
+    BUILD_SCM_REVISION=$(date +%s)
+  fi
 }
 
 check_envs
@@ -70,14 +74,14 @@ function preprocess_envs() {
 function prune() {
   #prune git
   if [ ! "${CREATE_ARTIFACTS}" == "true" ]; then
-    find . -name ".git*" | xargs rm -rf
+    find . -name ".git*" | xargs -r rm -rf
   fi
 
   #prune logs
-  find . -name "*.log" | xargs rm -rf
+  find . -name "*.log" | xargs -r rm -rf
 
   #prune gzip
-  #find . -name "*.gz" | xargs rm -rf
+  #find . -name "*.gz" | xargs -r rm -rf
 
   #prune go sdk
   GO_HOME=/usr/lib/golang
@@ -100,16 +104,16 @@ function prune() {
 
   #prune unecessary files
   #pushd ${FETCH_DIR}/istio-proxy/bazel
-    #find . -name "*.html" | xargs rm -rf
-    #find . -name "*.zip" | xargs rm -rf
-    #find . -name "example" | xargs rm -rf
-    #find . -name "examples" | xargs rm -rf
-    #find . -name "sample" | xargs rm -rf
-    #find . -name "samples" | xargs rm -rf
-    #find . -name "android" | xargs rm -rf
-    #find . -name "osx" | xargs rm -rf
-    #find . -name "*.a" | xargs rm -rf
-    #find . -name "*.so" | xargs rm -rf
+    #find . -name "*.html" | xargs -r rm -rf
+    #find . -name "*.zip" | xargs -r rm -rf
+    #find . -name "example" | xargs -r rm -rf
+    #find . -name "examples" | xargs -r rm -rf
+    #find . -name "sample" | xargs -r rm -rf
+    #find . -name "samples" | xargs -r rm -rf
+    #find . -name "android" | xargs -r rm -rf
+    #find . -name "osx" | xargs -r rm -rf
+    #find . -name "*.a" | xargs -r rm -rf
+    #find . -name "*.so" | xargs -r rm -rf
     #rm -rf bazel/base/external/go_sdk/src/archive/
   #popd
 
@@ -117,7 +121,7 @@ function prune() {
   pushd ${FETCH_DIR}/istio-proxy
     rm -rf bazel/base/execroot
     rm -rf bazel/root/cache
-    find . -name "*.o" | xargs rm
+#    find . -name "*.o" | xargs -r rm
   popd
 
 }
@@ -158,21 +162,8 @@ function add_custom_recipes() {
   cp -rf recipes/*.sh bazel/base/external/envoy/ci/build_container/build_recipes
 }
 
-function add_cxx_params(){
-  pushd ${FETCH_DIR}/istio-proxy/proxy
-    sed -i '1i build --cxxopt -D_GLIBCXX_USE_CXX11_ABI=1\n' tools/bazel.rc
-    sed -i '1i build --cxxopt -DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1\n' tools/bazel.rc
-  popd
-}
-
 function copy_bazel_build_status(){
   cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${FETCH_DIR}/istio-proxy/proxy/tools/bazel_get_workspace_status
-}
-
-function patch_python(){
-  pushd ${FETCH_DIR}/istio-proxy
-    sed -i 's|srcs = \["context.proto"\],|srcs = \["context.proto"\], generate_python = False,|g' ./proxy/src/istio/authn/BUILD
-  popd
 }
 
 function fetch() {
@@ -191,8 +182,7 @@ function fetch() {
           fi
         popd
 
-        add_cxx_params
-        patch_python
+        use_local_go
         copy_bazel_build_status
       fi
 
@@ -280,12 +270,26 @@ function create_tarball(){
 
 function add_cxx_params(){
   pushd ${FETCH_DIR}/istio-proxy/proxy
-    sed -i '1i build --cxxopt -D_GLIBCXX_USE_CXX11_ABI=1\n' tools/bazel.rc
-    sed -i '1i build --cxxopt -DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1\n' tools/bazel.rc
+    sed -i '1i build --cxxopt -D_GLIBCXX_USE_CXX11_ABI=1\n' .bazelrc
+    sed -i '1i build --cxxopt -DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1\n' .bazelrc
+  popd
+}
+
+function use_local_go(){
+  pushd ${FETCH_DIR}/istio-proxy/proxy
+    sed -i 's|go_register_toolchains()|go_register_toolchains(go_version="host")|g' WORKSPACE
+  popd
+}
+
+function add_BUILD_SCM_REVISIONS(){
+  pushd ${FETCH_DIR}/istio-proxy/proxy
+    sed -i "1i BUILD_SCM_REVISION=${BUILD_SCM_REVISION}\n" tools/bazel_get_workspace_status
   popd
 }
 
 preprocess_envs
 fetch
 add_path_markers
+add_cxx_params
+add_BUILD_SCM_REVISIONS
 create_tarball
