@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 6e0894f147634525e55d032b3576934f2ce41d18
+%global git_commit e7b48bdb25c5dd49d8fbe34acea05185719a4379
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +28,7 @@
 
 Name:           istio-operator
 Version:        0.7.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -82,6 +82,9 @@ cd tmp/_output/bin/
 %{_bindir}/istio-operator
 
 %changelog
+* Mon Jan 28 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-3
+- Updates to 3scale adapter integration
+
 * Fri Jan 25 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-2
 - Updated to include 3scale adapter configuration
 
