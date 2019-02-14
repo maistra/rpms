@@ -3,7 +3,7 @@
 # make sure that internet access is enabled during the build
 
 Name:           bazel
-Version:        0.20.0
+Version:        0.22.0
 Release:        1%{?dist}
 Summary:        Correct, reproducible, and fast builds for everyone.
 License:        Apache License 2.0
@@ -36,7 +36,7 @@ g++ --version
 
 CC=gcc
 CXX=g++
-./compile.sh
+env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" ./compile.sh
 ./output/bazel shutdown
 
 %install
@@ -52,6 +52,8 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Wed Feb 13 2019 Kevin Conner <kconner@redhat.com> 0.22.0-1
+- Release 0.20.1-1
 * Tue Jan 15 2019 Kevin Conner <kconner@redhat.com> 0.20.0-1
 - Release 0.20.1-1
 * Wed Aug 1  2018 Dmitri Dolguikh <ddolguik@redhat.com> 0.15.2-1
