@@ -20,14 +20,14 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-proxy
-Version:        0.7.0
+Version:        0.8.0
 Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
 
 #Common
-BuildRequires:  bazel = 0.20.0
+BuildRequires:  bazel = 0.22.0
 BuildRequires:  ninja-build
 BuildRequires:  devtoolset-4-gcc
 BuildRequires:  devtoolset-4-gcc-c++
@@ -97,6 +97,8 @@ RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Thu Feb 14 2019 Kevin Conner <kconner@redhat.com>
+  Release 0.8.0-1
 * Sun Jan 20 2019 Kevin Conner <kconner@redhat.com>
   Release 0.7.0-1
 * Thu Dec 20 2018 Kevin Conner <kconner@redhat.com>
