@@ -83,7 +83,7 @@ cd tmp/_output/bin/
 
 %changelog
 * Thu Feb 14 2019 Kevin Conner <kconner@redhat.com> - 0.8.0-1
-- Updates to 3scale adapter integration
+- Updated to 0.8.0
 
 * Mon Jan 28 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-3
 - Updates to 3scale adapter integration
