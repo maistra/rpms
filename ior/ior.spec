@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit 7bacb4a3de2d80e9229c9723be993d720f3ea969
+%global git_commit ad791dc47db0851859fedfa219ccbb0a99995417
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -11,7 +11,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        0.6.0
+Version:        0.8.0
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -53,5 +53,7 @@ install -p -m 755 cmd/ior %{buildroot}/%{_bindir}
 %{_bindir}/ior
 
 %changelog
+* Thu Feb 14 2019 Kevin Conner <kconner@redhat.com> - 0.8.0
+- First package
 * Mon Jan 14 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.6.0
 - First package
