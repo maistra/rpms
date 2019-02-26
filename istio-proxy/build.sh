@@ -67,7 +67,11 @@ function run_build() {
     sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/cc_wrapper.sh
     sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/CROSSTOOL
 
-    RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root build --config=${BUILD_CONFIG} "//..."
+    if [ "${BUILD_CONFIG}" == "debug" ]; then
+      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root build -c dbg "//..."
+    else
+      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root build --config=${BUILD_CONFIG} "//..."
+    fi
 
   popd
 }
@@ -82,7 +86,7 @@ function create_artifacts() {
       gzip envoy-${TARBALL_SUFFIX}-${SHA}.tar
       sha256sum "envoy-${TARBALL_SUFFIX}-${SHA}.tar.gz" > "envoy-${TARBALL_SUFFIX}-${SHA}.sha256"
 
-      if [ ${COPY_ARTIFACTS} = "true" ]; then
+      if [ ${COPY_ARTIFACTS} == "true" ]; then
         if [ -z "${ARTIFACTS_REMOTE_HOST}" ]; then
           echo "You have to set ARTIFACTS_REMOTE_HOST variable"
           exit 1
