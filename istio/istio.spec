@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.9.0
-Release:        2%{?dist}
+Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,7 +495,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Sun Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0-1
+* Mon Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0-1
 - Updated to 1.1 rc 2
 
 * Sun Feb 17 2019 Kevin Conner <kconner@redhat.com> - 0.8.0-2
