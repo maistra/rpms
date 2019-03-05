@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 23a67fc90059f443a9aeaddd80b9c76d03229712
+%global git_commit 47301f67cd53798f98c9a0edf1a0608761e6c289
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,8 +28,8 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.8.0
-Release:        2%{?dist}
+Version:        0.9.0
+Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Mon Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0-1
+- Updated to 1.1 rc 2
+
 * Sun Feb 17 2019 Kevin Conner <kconner@redhat.com> - 0.8.0-2
 - Include authz regex header matching
 
