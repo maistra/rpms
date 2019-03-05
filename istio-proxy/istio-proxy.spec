@@ -9,7 +9,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 99cfc3f74c414dd4fa4aa784a0f8b13e22b81893 
+%global git_commit f95f8530df5b6b71c163bf23c7bd2e2a3501382d 
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -97,6 +97,8 @@ RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Thu Mar 04 2019 Dmitri Dolguikh <ddolguik@redhat.com>
+  Release 0.9.0-1
 * Thu Feb 14 2019 Kevin Conner <kconner@redhat.com>
   Release 0.8.0-1
 * Sun Jan 20 2019 Kevin Conner <kconner@redhat.com>
