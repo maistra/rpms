@@ -29,12 +29,12 @@ URL:            https://%{provider_prefix}
 #Common
 BuildRequires:  bazel = 0.22.0
 BuildRequires:  ninja-build
-BuildRequires:  devtoolset-4-gcc
-BuildRequires:  devtoolset-4-gcc-c++
-BuildRequires:  devtoolset-4-libatomic-devel
-BuildRequires:  devtoolset-4-libstdc++-devel
-BuildRequires:  devtoolset-4-runtime
-BuildRequires:  devtoolset-4-binutils
+BuildRequires:  devtoolset-7-gcc
+BuildRequires:  devtoolset-7-gcc-c++
+BuildRequires:  devtoolset-7-libatomic-devel
+BuildRequires:  devtoolset-7-libstdc++-devel
+BuildRequires:  devtoolset-7-runtime
+BuildRequires:  devtoolset-7-binutils
 BuildRequires:  libtool
 BuildRequires:  golang
 BuildRequires:  automake

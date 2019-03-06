@@ -56,6 +56,10 @@ function set_default_envs() {
   if [ -z "${BUILD_SCM_REVISION}" ]; then
     BUILD_SCM_REVISION=$(date +%s)
   fi
+
+  if [ -z "${STRIP_LATOMIC}" ]; then
+    STRIP_LATOMIC=false
+  fi
 }
 
 check_envs
@@ -287,9 +291,23 @@ function add_BUILD_SCM_REVISIONS(){
   popd
 }
 
+# For devtoolset-7
+function strip_latomic(){
+  if [ "$STRIP_LATOMIC" = "true" ]; then
+    pushd ${FETCH_DIR}/istio-proxy/bazel/base/external
+      find . -type f -name "configure.ac" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "CMakeLists.txt" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "configure" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "CROSSTOOL" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "envoy_build_system.bzl" -exec sed -i 's/-latomic//g' {} +
+    popd
+  fi
+}
+
 preprocess_envs
 fetch
 add_path_markers
 add_cxx_params
 add_BUILD_SCM_REVISIONS
+strip_latomic
 create_tarball
