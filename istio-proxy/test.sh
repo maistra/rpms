@@ -2,8 +2,12 @@ set -x
 set -e
 
 function set_default_envs() {
+  if [ -z "${RPM_SOURCE_DIR}" ]; then
+    RPM_SOURCE_DIR=.
+  fi
+	
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.9
+    PROXY_GIT_BRANCH=`cat ${RPM_SOURCE_DIR}/VERSION`
   fi
 
   if [ -z "${FETCH_DIR}" ]; then
@@ -12,10 +16,6 @@ function set_default_envs() {
 
   if [ -z "${BUILD_CONFIG}" ]; then
     BUILD_CONFIG=release
-  fi
-
-  if [ -z "${RPM_SOURCE_DIR}" ]; then
-    RPM_SOURCE_DIR=.
   fi
 }
 

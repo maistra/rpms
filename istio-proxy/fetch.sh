@@ -9,12 +9,16 @@ function check_envs() {
 }
 
 function set_default_envs() {
+  if [ -z "${RPM_SOURCE_DIR}" ]; then
+    RPM_SOURCE_DIR=$(pwd)
+  fi
+
   if [ -z "${PROXY_GIT_REPO}" ]; then
     PROXY_GIT_REPO=https://github.com/Maistra/proxy
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.9
+    PROXY_GIT_BRANCH=`cat ${RPM_SOURCE_DIR}/VERSION` 
   fi
 
   if [ -z "${RECIPES_GIT_REPO}" ]; then
@@ -43,10 +47,6 @@ function set_default_envs() {
 
   if [ -z "${CREATE_ARTIFACTS}" ]; then
     CREATE_ARTIFACTS=false
-  fi
-
-  if [ -z "${RPM_SOURCE_DIR}" ]; then
-    RPM_SOURCE_DIR=$(pwd)
   fi
 
   if [ -z "${FETCH_OR_BUILD}" ]; then
