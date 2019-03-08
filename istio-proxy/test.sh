@@ -36,7 +36,7 @@ function run_tests() {
           sed -i 's|TEST_F|TEST|g' src/istio/mixerclient/check_cache_test.cc
         fi
 
-        bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --config=${BUILD_CONFIG} "//..."
+        bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --config=${BUILD_CONFIG} "//..."
 
       fi
     popd
