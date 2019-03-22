@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit ad791dc47db0851859fedfa219ccbb0a99995417
+%global git_commit b73712e18e2dd920f6b632a72283b137e2322533
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -11,7 +11,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        0.9.0
+Version:        0.10.0
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -53,6 +53,8 @@ install -p -m 755 cmd/ior %{buildroot}/%{_bindir}
 %{_bindir}/ior
 
 %changelog
+* Fri Mar 22 2019 Brian Avery <bavery@redhat.com> - 0.10.0
+- Maistra 0.10 release
 * Mon Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0
 - Maistra 0.9 release
 * Thu Feb 14 2019 Kevin Conner <kconner@redhat.com> - 0.8.0
