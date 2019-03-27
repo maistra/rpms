@@ -13,15 +13,26 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 510e2d4075b2284e0c2820988b96576503a9897c
+%global git_commit 44fe4f156201756586890ef76c159ffde393e5e8
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
 %global provider_tld    com
 %global project         maistra
 %global repo            istio-operator
+
+# charts
+%global charts_git_commit 6bfefdd1c31e15390e166da75c441368e77f8174
+%global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
+
+%global charts_repo      istio
+%global charts_version   1.1.0
+
+# are we building community or product rpms
+%global community_build  true
+
 # https://github.com/maistra/istio-operator
-%global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
+%global provider_prefix %{provider}.%{provider_tld}/%{project}
 
 # Use /usr/local as base dir, once upstream heavily depends on that
 %global _prefix /usr/local
@@ -31,9 +42,10 @@ Version:        0.10.0
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
-URL:            https://%{provider_prefix}
+URL:            https://%{provider_prefix}/%{repo}
 
-Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
+Source0:        https://%{provider_prefix}/%{repo}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
+Source1:        https://%{provider_prefix}/%{charts_repo}/archive/%{charts_git_commit}/%{charts_repo}-%{charts_git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
@@ -55,21 +67,29 @@ Istio-operator is a kubernetes operator to manage the lifecycle of Istio.
 %prep
 
 rm -rf OPERATOR
+
 mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
+
+mkdir -p OPERATOR/src/github.com/maistra/istio
+tar zxf %{SOURCE1} -C OPERATOR/src/github.com/maistra/istio --strip=1
 
 %build
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
-cd src/github.com/maistra/istio-operator/tmp/build/
-./build.sh
+pushd src/github.com/maistra/istio-operator/
+./tmp/build/build.sh
+
+popd
+cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
+pushd src/github.com/maistra/istio-operator/
+COMMUNITY=%{community_build} MAISTRA_VERSION=%{VERSION} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
-cd OPERATOR/src/github.com/maistra/istio-operator/tmp/build/
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
 
-cd tmp/_output/bin/
 %if 0%{?with_debug}
     cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
 %else
@@ -77,11 +97,22 @@ cd tmp/_output/bin/
     strip -o stripped/istio-operator -s istio-operator
     cp -pav stripped/istio-operator $RPM_BUILD_ROOT%{_bindir}/
 %endif
+popd
+
+# install the charts
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/
+cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
+
 
 %files
 %{_bindir}/istio-operator
+%{_sysconfdir}/istio-operator
 
 %changelog
+* Thu Mar 28 2019 Rob Cernich <rcernich@redhat.com> - 0.10.0-1
+- Added helm charts used by new installer
+
 * Mon Mar 25 2019 Brian Avery <bavery@redhat.com> - 0.10.0-1
 - Updated to 0.10.0/New installer
 
