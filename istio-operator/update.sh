@@ -16,19 +16,24 @@ while getopts ":i:v:" opt; do
 done
 
 [[ -z "${ISTIO_OPERATOR_SHA}" ]] && ISTIO_OPERATOR_SHA="$(grep '%global git_commit ' istio-operator.spec | cut -d' ' -f3)"
+[[ -z "${ISTIO_CHARTS_SHA}" ]] && ISTIO_CHARTS_SHA="$(grep '%global charts_git_commit ' istio-operator.spec | cut -d' ' -f3)"
 
 function update_commit() {
     local prefix="$1"
     local prefix_spec=${prefix/-/_}
-    local sha="$2"
+    local operator_sha="$2"
+    local charts_sha="$3"
 
-    local tarball="https://github.com/maistra/${prefix}istio-operator/archive/${sha}/${prefix}istio-operator-${sha}.tar.gz"
-    local filename="${prefix}istio-operator-${sha}.tar.gz"
+    local operator_tarball="https://github.com/maistra/${prefix}istio-operator/archive/${operator_sha}/${prefix}istio-operator-${operator_sha}.tar.gz"
+    local operator_filename="${prefix}istio-operator-${operator_sha}.tar.gz"
+
+    local charts_tarball="https://github.com/maistra/${prefix}istio/archive/${charts_sha}/${prefix}istio-${charts_sha}.tar.gz"
+    local charts_filename="${prefix}istio-${charts_sha}.tar.gz"
 
     echo -n "Checking ${prefix}istio-operator...   "
-    if [ ! -f "${filename}" ]; then
-        echo "Downloading ${tarball}"
-        curl -Lfs ${tarball} -o "${filename}"
+    if [ ! -f "${operator_filename}" ]; then
+        echo "Downloading ${operator_tarball}"
+        curl -Lfs ${operator_tarball} -o "${operator_filename}"
         if [ $? -ne 0 ]; then
             echo "Error downloading tarball, exiting."
             exit 1
@@ -37,8 +42,21 @@ function update_commit() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/%global ${prefix_spec}git_commit .*/%global ${prefix_spec}git_commit ${sha}/" istio-operator.spec
-    NEW_SOURCES="${NEW_SOURCES} ${filename}"
+    echo -n "Checking ${prefix}istio... (charts)  "
+    if [ ! -f "${charts_filename}" ]; then
+        echo "Downloading ${charts_tarball}"
+        curl -Lfs ${charts_tarball} -o "${charts_filename}"
+        if [ $? -ne 0 ]; then
+            echo "Error downloading tarball, exiting."
+            exit 1
+        fi
+    else
+        echo "Already on disk, download not necessary"
+    fi
+
+    sed -i "s/%global ${prefix_spec}git_commit .*/%global ${prefix_spec}git_commit ${operator_sha}/" istio-operator.spec
+    sed -i "s/%global ${prefix_spec}charts_git_commit .*/%global ${prefix_spec}charts_git_commit ${charts_sha}/" istio-operator.spec
+    NEW_SOURCES="${NEW_SOURCES} ${operator_filename} ${charts_filename}"
 }
 
 function new_sources() {
@@ -47,5 +65,5 @@ function new_sources() {
     md5sum ${NEW_SOURCES} > sources
 }
 
-update_commit "" "${ISTIO_OPERATOR_SHA}"
+update_commit "" "${ISTIO_OPERATOR_SHA}" "${ISTIO_CHARTS_SHA}"
 new_sources
