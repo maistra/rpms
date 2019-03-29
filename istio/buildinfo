@@ -1,5 +1,5 @@
-istio.io/istio/pkg/version.buildVersion=0.10.0-1
-istio.io/istio/pkg/version.buildGitRevision=4408997686d86a157f006403acfd46508d166f8c
+istio.io/istio/pkg/version.buildVersion=0.10.0-2
+istio.io/istio/pkg/version.buildGitRevision=6bfefdd1c31e15390e166da75c441368e77f8174
 istio.io/istio/pkg/version.buildUser=redhat
 istio.io/istio/pkg/version.buildHost=redhat
 istio.io/istio/pkg/version.buildDockerHub=docker.io/maistra
