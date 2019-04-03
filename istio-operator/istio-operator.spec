@@ -83,7 +83,7 @@ pushd src/github.com/maistra/istio-operator/
 popd
 cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
 pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} MAISTRA_VERSION=%{VERSION} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
+COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
 rm -rf $RPM_BUILD_ROOT
