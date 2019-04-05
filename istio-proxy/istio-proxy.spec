@@ -12,8 +12,8 @@
 %global git_commit 5c494348b336f4d3b793b86c4ab696a9c0d43417 
 
 Name:           istio-proxy
-Version:        0.9.0
-Release:        2%{?dist}
+Version:        0.9.1
+Release:        0%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy

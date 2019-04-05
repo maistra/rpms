@@ -287,9 +287,16 @@ function add_BUILD_SCM_REVISIONS(){
   popd
 }
 
+function apply_envoy_patch(){
+  pushd ${FETCH_DIR}/istio-proxy/bazel/base/external/envoy
+    git apply ${RPM_SOURCE_DIR}/envoy-1.1.0.patch
+  popd
+}
+
 preprocess_envs
 fetch
 add_path_markers
 add_cxx_params
 add_BUILD_SCM_REVISIONS
+apply_envoy_patch
 create_tarball
