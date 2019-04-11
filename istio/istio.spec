@@ -495,7 +495,6 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-<<<<<<< HEAD
 * Thu Apr 11 2019 Brian Avery <bavery@redhat.com> - 0.10.0-3
 - Update sidecar injector to create/monitor/update webhook configuration
 
