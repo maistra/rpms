@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 44fe4f156201756586890ef76c159ffde393e5e8
+%global git_commit 9454bccdb91226cfd5e9e0681251251ddf39d91d
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        0.10.0
-Release:        1%{?dist}
+Release:        3%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -83,7 +83,7 @@ pushd src/github.com/maistra/istio-operator/
 popd
 cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
 pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} MAISTRA_VERSION=%{VERSION} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
+COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
 rm -rf $RPM_BUILD_ROOT
