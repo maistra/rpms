@@ -14,7 +14,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.9
+    PROXY_GIT_BRANCH=maistra-0.10
   fi
 
   if [ -z "${RECIPES_GIT_REPO}" ]; then
@@ -22,7 +22,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${RECIPES_GIT_BRANCH}" ]; then
-    RECIPES_GIT_BRANCH=maistra-0.9
+    RECIPES_GIT_BRANCH=maistra-0.10
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
@@ -287,9 +287,16 @@ function add_BUILD_SCM_REVISIONS(){
   popd
 }
 
+function apply_envoy_patch(){
+  pushd ${FETCH_DIR}/istio-proxy/bazel/base/external/envoy
+    git apply ${RPM_SOURCE_DIR}/envoy-1.1.0.patch
+  popd
+}
+
 preprocess_envs
 fetch
 add_path_markers
 add_cxx_params
 add_BUILD_SCM_REVISIONS
+apply_envoy_patch
 create_tarball

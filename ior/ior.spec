@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit b73712e18e2dd920f6b632a72283b137e2322533
+%global git_commit 5a0d5e50ddecba276029387d3649e559cf3d33a3
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github

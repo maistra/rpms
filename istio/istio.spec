@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 6bfefdd1c31e15390e166da75c441368e77f8174
+%global git_commit a998810d2048a4c4acf206613f9c789a0df7a5aa
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -495,6 +495,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+<<<<<<< HEAD
 * Thu Apr 11 2019 Brian Avery <bavery@redhat.com> - 0.10.0-3
 - Update sidecar injector to create/monitor/update webhook configuration
 
