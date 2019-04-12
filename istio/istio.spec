@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.10.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
+- Update sidecar injector to create/monitor/update webhook configuration
+
 * Thu Apr 11 2019 Brian Avery <bavery@redhat.com> - 0.10.0-2
 - Update sidecar injector to create/monitor/update webhook configuration
 
