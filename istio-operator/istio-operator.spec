@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 9454bccdb91226cfd5e9e0681251251ddf39d91d
+%global git_commit 874cf88dc2634fbce63b520a0a4f9f01e737a203
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit 6bfefdd1c31e15390e166da75c441368e77f8174
+%global charts_git_commit a998810d2048a4c4acf206613f9c789a0df7a5aa
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        0.10.0
-Release:        3%{?dist}
+Release:        5%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
