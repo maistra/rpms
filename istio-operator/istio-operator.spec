@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 874cf88dc2634fbce63b520a0a4f9f01e737a203
+%global git_commit 81407cf6a93b63c85920af34e0e8e8dc0b6355c7
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        0.10.0
-Release:        5%{?dist}
+Release:        6%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -110,6 +110,10 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %{_sysconfdir}/istio-operator
 
 %changelog
+* Thu Apr 15 2019 Rob Cernich <rcernich@redhat.com> - 0.10.0-6
+- watch istio-system for ControlPlane CR
+- watch istio-operator for Installation CR
+
 * Thu Mar 28 2019 Rob Cernich <rcernich@redhat.com> - 0.10.0-1
 - Added helm charts used by new installer
 
