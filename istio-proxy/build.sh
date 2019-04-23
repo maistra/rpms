@@ -3,11 +3,15 @@ set -e
 
 function set_default_envs() {
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.10
+    PROXY_GIT_BRANCH=maistra-0.11
+  fi
+
+  if [ -z "${PROXY_NAME}" ]; then
+    PROXY_NAME=servicemesh-proxy
   fi
 
   if [ -z "${FETCH_DIR}" ]; then
-    FETCH_DIR=${RPM_BUILD_DIR}/istio-proxy
+    FETCH_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}
   fi
 
   if [ -z "${BUILD_CONFIG}" ]; then
@@ -25,6 +29,8 @@ function set_default_envs() {
   if [ -z "${STRIP}" ]; then
     STRIP="--strip-unneeded"
   fi
+
+  CACHE_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel
 }
 
 set_default_envs
@@ -35,53 +41,50 @@ check_dependencies
 
 function copy_fetch() {
 
-  if [ "$FETCH_DIR" == "${RPM_BUILD_DIR}/istio-proxy" ]; then
+  if [ "$FETCH_DIR" == "${RPM_BUILD_DIR}/${PROXY_NAME}" ]; then
     pushd ${FETCH_DIR}/proxy
       if [ -d ".git" ]; then
         SHA="$(git rev-parse --verify HEAD)"
       fi
     popd
 
-    #bazel build expects istio-proxy-${PROXY_GIT_BRANCH} dir
-    mkdir -p ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
-    mv ${FETCH_DIR} ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
+    #bazel build expects ${PROXY_NAME}-${PROXY_GIT_BRANCH} dir
+    mkdir -p ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}
+    mv ${FETCH_DIR} ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}
 
-    #rpmbuild expects istio-proxy dir
-    mkdir -p ${RPM_BUILD_DIR}/istio-proxy
+    #rpmbuild expects ${PROXY_NAME} dir
+    mkdir -p ${RPM_BUILD_DIR}/${PROXY_NAME}
   else
-    pushd ${FETCH_DIR}/istio-proxy/proxy
+    pushd ${FETCH_DIR}/${PROXY_NAME}/proxy
       if [ -d ".git" ]; then
         SHA="$(git rev-parse --verify HEAD)"
       fi
     popd
 
-    rm -rf ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
-    cp -rfp ${FETCH_DIR} ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
+    rm -rf ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}
+    cp -rfp ${FETCH_DIR} ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}
   fi
 }
 
 function run_build() {
-  pushd ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/proxy
+  pushd ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy
 
     #replace fully qualified tool path from fetch
-    sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/cc_wrapper.sh
-    sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel|" ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base/external/local_config_cc/CROSSTOOL
+    sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base/external/local_config_cc/cc_wrapper.sh
+    sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base/external/local_config_cc/CROSSTOOL
 
-    if [ "${BUILD_CONFIG}" == "debug" ]; then
-      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root build -c dbg "//..."
-    else
-      RECIPES_DIR=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy bazel --output_base=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/base --output_user_root=${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/bazel/root build --config=${BUILD_CONFIG} "//..."
-    fi
+    set_python_rules_date
+    RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --config=${BUILD_CONFIG} "//..."
 
   popd
 }
 
 function create_artifacts() {
   if [ "${CREATE_ARTIFACTS}" == "true" ]; then
-    pushd ${RPM_BUILD_DIR}/istio-proxy-${PROXY_GIT_BRANCH}
+    pushd ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}
       mkdir -p usr/local/bin
-      cp istio-proxy/proxy/bazel-bin/src/envoy/envoy usr/local/bin/envoy
-      cp istio-proxy/proxy/bazel-bin/src/envoy/envoy envoy
+      cp ${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy usr/local/bin/envoy
+      cp ${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy envoy
       tar -cvf envoy-${TARBALL_SUFFIX}-${SHA}.tar usr
       gzip envoy-${TARBALL_SUFFIX}-${SHA}.tar
       sha256sum "envoy-${TARBALL_SUFFIX}-${SHA}.tar.gz" > "envoy-${TARBALL_SUFFIX}-${SHA}.sha256"
@@ -103,13 +106,13 @@ function create_artifacts() {
 }
 
 function copy_binary() {
-  if [ "${FETCH_DIR}" == "${RPM_BUILD_DIR}/istio-proxy" ]; then
+  if [ "${FETCH_DIR}" == "${RPM_BUILD_DIR}/${PROXY_NAME}" ]; then
     pushd ${RPM_BUILD_DIR}
       if [ ! -z "${STRIP}" ]; then
-        strip ${STRIP} istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/proxy/bazel-bin/src/envoy/envoy -o istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/proxy/bazel-bin/src/envoy/envoy-stripped
-        cp istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/proxy/bazel-bin/src/envoy/envoy-stripped ${RPM_BUILD_DIR}/envoy
+        strip ${STRIP} ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy -o ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy-stripped
+        cp ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy-stripped ${RPM_BUILD_DIR}/envoy
       else
-        cp istio-proxy-${PROXY_GIT_BRANCH}/istio-proxy/proxy/bazel-bin/src/envoy/envoy ${RPM_BUILD_DIR}
+        cp ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy ${RPM_BUILD_DIR}
       fi
     popd
   fi

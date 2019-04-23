@@ -6,23 +6,17 @@ function check_envs() {
     echo "FETCH_DIR required. Please set"
     exit 1
   fi
+
+  CACHE_DIR=${FETCH_DIR}/istio-proxy/bazel
 }
 
 function set_default_envs() {
   if [ -z "${PROXY_GIT_REPO}" ]; then
-    PROXY_GIT_REPO=https://github.com/Maistra/proxy
+    PROXY_GIT_REPO=https://github.com/maistra/proxy
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.10
-  fi
-
-  if [ -z "${RECIPES_GIT_REPO}" ]; then
-    RECIPES_GIT_REPO=https://github.com/Maistra/recipes-istio-proxy
-  fi
-
-  if [ -z "${RECIPES_GIT_BRANCH}" ]; then
-    RECIPES_GIT_BRANCH=maistra-0.10
+    PROXY_GIT_BRANCH=maistra-0.11
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
@@ -56,6 +50,14 @@ function set_default_envs() {
   if [ -z "${BUILD_SCM_REVISION}" ]; then
     BUILD_SCM_REVISION=$(date +%s)
   fi
+
+  if [ -z "${STRIP_LATOMIC}" ]; then
+    STRIP_LATOMIC=true
+  fi
+
+  if [ -z "${REPLACE_SSL}" ]; then
+    REPLACE_SSL=true
+  fi
 }
 
 check_envs
@@ -72,74 +74,39 @@ function preprocess_envs() {
 }
 
 function prune() {
-  #prune git
-  if [ ! "${CREATE_ARTIFACTS}" == "true" ]; then
-    find . -name ".git*" | xargs -r rm -rf
-  fi
-
-  #prune logs
-  find . -name "*.log" | xargs -r rm -rf
-
-  #prune gzip
-  #find . -name "*.gz" | xargs -r rm -rf
-
-  #prune go sdk
-  GO_HOME=/usr/lib/golang
-  #rm -rf bazel/base/external/go_sdk/{api,bin,lib,pkg,wrc,test,misc,doc,blog}
-  #ln -s ${GO_HOME}/api bazel/base/external/go_sdk/api
-  #ln -s ${GO_HOME}/bin bazel/base/external/go_sdk/bin
-  #ln -s ${GO_HOME}/lib bazel/base/external/go_sdk/lib
-  #ln -s ${GO_HOME}/pkg bazel/base/external/go_sdk/pkg
-  #ln -s ${GO_HOME}/src bazel/base/external/go_sdk/src
-  #ln -s ${GO_HOME}/test bazel/base/external/go_sdk/test
-
-  #prune boringssl tests
-  #rm -rf boringssl/crypto/cipher_extra/test
-
-  #prune grpc tests
-  rm -rf bazel/base/external/com_github_grpc_grpc/test
-
-  #prune build_tools
-  #cp -rf BUILD.bazel bazel/base/external/io_bazel_rules_go/go/toolchain/BUILD.bazel
-
-  #prune unecessary files
-  #pushd ${FETCH_DIR}/istio-proxy/bazel
-    #find . -name "*.html" | xargs -r rm -rf
-    #find . -name "*.zip" | xargs -r rm -rf
-    #find . -name "example" | xargs -r rm -rf
-    #find . -name "examples" | xargs -r rm -rf
-    #find . -name "sample" | xargs -r rm -rf
-    #find . -name "samples" | xargs -r rm -rf
-    #find . -name "android" | xargs -r rm -rf
-    #find . -name "osx" | xargs -r rm -rf
-    #find . -name "*.a" | xargs -r rm -rf
-    #find . -name "*.so" | xargs -r rm -rf
-    #rm -rf bazel/base/external/go_sdk/src/archive/
-  #popd
-
-
   pushd ${FETCH_DIR}/istio-proxy
-    rm -rf bazel/base/execroot
-    rm -rf bazel/root/cache
-#    find . -name "*.o" | xargs -r rm
+    #prune git
+    if [ ! "${CREATE_ARTIFACTS}" == "true" ]; then
+      find . -name ".git*" | xargs -r rm -rf
+    fi
+
+    #prune logs
+    find . -name "*.log" | xargs -r rm -rf
+  popd
+
+  pushd ${CACHE_DIR}
+    rm -rf base/execroot
+    rm -rf root/cache
   popd
 
 }
 
 function correct_links() {
-  # replace links with copies (links are fully qualified paths so don't travel)
-  pushd ${FETCH_DIR}/istio-proxy/bazel
+  # replace fully qualified links with relative links (former does not travel)
+  pushd ${CACHE_DIR}
     find . -lname '/*' -exec ksh -c '
+      PWD=$(pwd)
+echo $PWD
       for link; do
         target=$(readlink "$link")
         link=${link#./}
         root=${link//+([!\/])/..}; root=${root#/}; root=${root%..}
         rm "$link"
         target="$root${target#/}"
-        target=$(echo $target | sed "s|../../..${FETCH_DIR}/istio-proxy/bazel/base|../../../base|")
-        target=$(echo $target | sed "s|../..${FETCH_DIR}/istio-proxy/bazel/base|../../base|")
-        target=$(echo $target | sed "s|../../..${FETCH_DIR}/istio-proxy/bazel/root|../../../root|")
-        target=$(echo $target | sed "s|..${FETCH_DIR}/istio-proxy/bazel/root|../root|")
+        target=$(echo $target | sed "s|../../..${PWD}/base|../../../base|")
+        target=$(echo $target | sed "s|../..${PWD}/base|../../base|")
+        target=$(echo $target | sed "s|../../..${PWD}/root|../../../root|")
+        target=$(echo $target | sed "s|..${PWD}/root|../root|")
         target=$(echo $target | sed "s|../../../usr/lib/jvm|/usr/lib/jvm|")
         ln -s "$target" "$link"
       done
@@ -157,13 +124,23 @@ function remove_build_artifacts() {
   rm -rf bazel/base/external/envoy_deps_cache_*
 }
 
-function add_custom_recipes() {
-  # use custom dependency recipes
-  cp -rf recipes/*.sh bazel/base/external/envoy/ci/build_container/build_recipes
-}
-
 function copy_bazel_build_status(){
   cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${FETCH_DIR}/istio-proxy/proxy/tools/bazel_get_workspace_status
+}
+
+function replace_python() {
+
+  pushd ${CACHE_DIR}
+    find . -type f -name "rules" -exec sed -i 's|/usr/bin/python|/usr/bin/python3|g' {} +
+    sed -i 's|/usr/bin/python|/usr/bin/python3|g' base/external/local_config_cc/extra_tools/envoy_cc_wrapper
+    #chmod 777 base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
+    #sed -i "s|/usr/bin/env python|/usr/bin/env python3|g" bazel/base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
+    #sed -i "s|PYTHON_BINARY = 'python'|PYTHON_BINARY = 'python3'|g" base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
+    find base/external -type f -name "*.py" -exec sed -i 's|.iteritems()|.items()|g' {} +
+    find base/external -type f -name "*.yaml" -exec sed -i 's|.iteritems()|.items()|g' {} +
+  popd
+
+  set_python_rules_date
 }
 
 function fetch() {
@@ -186,31 +163,6 @@ function fetch() {
         copy_bazel_build_status
       fi
 
-      if [ ! "$FETCH_ONLY" = "true" ]; then
-        #clone dependency source and custom recipes
-        if [ ! -d "recipes" ]; then
-          # benchmark e1c3a83b8197cf02e794f61228461c27d4e78cfb
-          # cares cares-1_14_0
-          # gperftools 2.6.3
-          # libevent 2.1.8-stable
-          # luajit 2.0.5
-          # nghttp2 1.32.0
-          # yaml-cpp 0.6.2
-          # nghttp2 1.31.1
-          # yaml-cpp 0.6.1
-          # zlib 1.2.11
-
-          git clone ${RECIPES_GIT_REPO} -b ${RECIPES_GIT_BRANCH} recipes
-        fi
-
-        #fetch dependency sources
-        for filename in recipes/*.sh
-        do
-          FETCH=true ./$filename
-        done
-        rm -rf *.gz
-      fi
-
       bazel_dir="bazel"
       if [ "${DEBUG_FETCH}" == "true" ]; then
         bazel_dir="bazelorig"
@@ -220,7 +172,7 @@ function fetch() {
         set_path
 
         pushd ${FETCH_DIR}/istio-proxy/proxy
-          bazel --output_base=${FETCH_DIR}/istio-proxy/bazel/base --output_user_root=${FETCH_DIR}/istio-proxy/bazel/root --batch ${FETCH_OR_BUILD} //...
+          bazel --output_base=${FETCH_DIR}/istio-proxy/bazel/base --output_user_root=${FETCH_DIR}/istio-proxy/bazel/root ${FETCH_OR_BUILD} //...
         popd
 
         if [ "${DEBUG_FETCH}" == "true" ]; then
@@ -238,14 +190,6 @@ function fetch() {
         cp -rfp bazelorig bazel
       fi
 
-      prune
-
-      correct_links
-
-      remove_build_artifacts
-
-      add_custom_recipes
-
     popd
   fi
 }
@@ -257,12 +201,22 @@ function add_path_markers() {
   popd
 }
 
+function update_compiler_flags() {
+  pushd ${CACHE_DIR}
+    sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' base/external/local_config_cc/CROSSTOOL
+    sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' base/external/local_config_cc/CROSSTOOL
+    sed -i 's|compiler_flag: "-Wthread-safety"||g' base/external/local_config_cc/CROSSTOOL
+
+    sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' base/external/envoy/bazel/envoy_build_system.bzl
+  popd
+}
+
 function create_tarball(){
   if [ "$CREATE_TARBALL" = "true" ]; then
     # create tarball
     pushd ${FETCH_DIR}
       rm -rf proxy-full.tar.xz
-      tar cf proxy-full.tar istio-proxy --exclude=istio-proxy/bazelorig --exclude=istio-proxy/bazel/X --atime-preserve
+      tar cf proxy-full.tar istio-proxy --atime-preserve
       xz proxy-full.tar
     popd
   fi
@@ -277,7 +231,7 @@ function add_cxx_params(){
 
 function use_local_go(){
   pushd ${FETCH_DIR}/istio-proxy/proxy
-    sed -i 's|go_register_toolchains()|go_register_toolchains(go_version="host")|g' WORKSPACE
+    sed -i 's|go_register_toolchains(go_version = GO_VERSION)|go_register_toolchains(go_version="host")|g' WORKSPACE
   popd
 }
 
@@ -287,16 +241,73 @@ function add_BUILD_SCM_REVISIONS(){
   popd
 }
 
-function apply_envoy_patch(){
-  pushd ${FETCH_DIR}/istio-proxy/bazel/base/external/envoy
-    git apply ${RPM_SOURCE_DIR}/envoy-1.1.0.patch
+# For devtoolset-7/8
+function strip_latomic(){
+  if [ "$STRIP_LATOMIC" = "true" ]; then
+    pushd ${CACHE_DIR}/base/external
+      find . -type f -name "configure.ac" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "CMakeLists.txt" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "configure" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "CROSSTOOL" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "envoy_build_system.bzl" -exec sed -i 's/-latomic//g' {} +
+    popd
+  fi
+}
+
+function patch_class_memaccess() {
+  pushd ${FETCH_DIR}/istio-proxy/proxy
+#    sed -i "s|memset(\&old_stats_, 0, sizeof(old_stats_));|free(\&old_stats_);\n  ::istio::mixerclient::Statistics new_stats;\n  old_stats_ = new_stats;|g" src/envoy/utils/stats.cc
+    echo "build --cxxopt -Wno-error=class-memaccess" >> .bazelrc
   popd
+}
+
+function replace_ssl() {
+  if [ "$REPLACE_SSL" = "true" ]; then
+    pushd ${FETCH_DIR}/istio-proxy/proxy
+      git clone http://github.com/bdecoste/istio-proxy-openssl -b 02112019
+      pushd istio-proxy-openssl
+        ./openssl.sh ${FETCH_DIR}/istio-proxy/proxy OPENSSL
+      popd
+      rm -rf istio-proxy-openssl
+
+      git clone http://github.com/bdecoste/envoy-openssl -b 02112019
+      pushd envoy-openssl
+        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL
+      popd
+      rm -rf envoy-openssl
+
+      git clone http://github.com/bdecoste/jwt-verify-lib-openssl -b 02112019
+      pushd jwt-verify-lib-openssl
+        ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
+      popd
+      rm -rf jwt-verify-lib-openssl
+    popd
+
+    rm -rf ${CACHE_DIR}/base/external/*boringssl*
+
+    # re-fetch for updated dependencies
+    pushd ${FETCH_DIR}/istio-proxy/proxy
+      bazel --output_base=${CACHE_DIR}/base --output_user_root=${CACHE_DIR}/root fetch //...
+    popd
+
+    prune
+
+    set_python_rules_date
+
+  fi
 }
 
 preprocess_envs
 fetch
+patch_class_memaccess
+replace_python
+update_compiler_flags
+prune
+remove_build_artifacts
 add_path_markers
-add_cxx_params
+#add_cxx_params
+replace_ssl
 add_BUILD_SCM_REVISIONS
-apply_envoy_patch
+strip_latomic
+correct_links
 create_tarball
