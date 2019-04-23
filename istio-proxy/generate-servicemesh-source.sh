@@ -27,6 +27,6 @@ XZ=/usr/bin/xz
   tar cf - "${OUTPUT_DIR}" | ${XZ} -cz - > "${DIR}/${OUTPUT_FILE}"
   rm -rf "${OUTPUT_DIR}"
   CHECKSUM=$(md5sum "${DIR}/${OUTPUT_FILE}" | awk '{print $1}')
-  sed -i "${DIR}/servicemesh-proxy.spec" -e 's+\(^%global\s*checksum\s*\).*$+\1'${CHECKSUM}'+'
+  sed -i "${DIR}/istio-proxy.spec" -e 's+\(^%global\s*checksum\s*\).*$+\1'${CHECKSUM}'+'
   mv "${DIR}/${OUTPUT_FILE}" "${DIR}/${OUTPUT_DIR}.${CHECKSUM}.tar.xz"
 )

@@ -9,7 +9,17 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 5c494348b336f4d3b793b86c4ab696a9c0d43417 
+%global git_commit a169a0c0cd86b51538c240e2d037fa8f7f5860ae
+%global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
+
+# https://github.com/istio/proxy
+%global provider        github
+%global provider_tld    com
+%global project         istio
+%global repo            proxy
+%global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
+
+%global checksum        ad30bfb6cc1e490a3f54ae4e01c00f78
 
 Name:           istio-proxy
 Version:        0.11.0
