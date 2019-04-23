@@ -1,3 +1,5 @@
+set -x 
+
 DIR="$(cd $(dirname $0) ; pwd -P)"
 
 if [ $# -ne 1 ] ; then
