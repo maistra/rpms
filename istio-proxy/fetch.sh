@@ -264,19 +264,19 @@ function patch_class_memaccess() {
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
     pushd ${FETCH_DIR}/istio-proxy/proxy
-      git clone http://github.com/bdecoste/istio-proxy-openssl -b 02112019
+      git clone http://github.com/maistra/istio-proxy-openssl -b ${PROXY_GIT_BRANCH}
       pushd istio-proxy-openssl
         ./openssl.sh ${FETCH_DIR}/istio-proxy/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
-      git clone http://github.com/bdecoste/envoy-openssl -b 02112019
+      git clone http://github.com/maistra/envoy-openssl -b ${PROXY_GIT_BRANCH}
       pushd envoy-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL
       popd
       rm -rf envoy-openssl
 
-      git clone http://github.com/bdecoste/jwt-verify-lib-openssl -b 02112019
+      git clone http://github.com/maistra/jwt-verify-lib-openssl -b ${PROXY_GIT_BRANCH}
       pushd jwt-verify-lib-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
       popd
