@@ -7,7 +7,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${PROXY_NAME}" ]; then
-    PROXY_NAME=servicemesh-proxy
+    PROXY_NAME=istio-proxy
   fi
 
   if [ -z "${FETCH_DIR}" ]; then
