@@ -28,30 +28,20 @@ Summary:        The Istio Proxy is a microservice proxy that can be used on the 
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
 
-#Common
 BuildRequires:  bazel = 0.22.0
 BuildRequires:  ninja-build
-BuildRequires:  devtoolset-4-gcc
-BuildRequires:  devtoolset-4-gcc-c++
-BuildRequires:  devtoolset-4-libatomic-devel
-BuildRequires:  devtoolset-4-libstdc++-devel
-BuildRequires:  devtoolset-4-runtime
-BuildRequires:  devtoolset-4-binutils
-BuildRequires:  libtool
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  make
+BuildRequires:  patch
+BuildRequires:  ksh
+BuildRequires:  xz
 BuildRequires:  golang
 BuildRequires:  automake
-BuildRequires:  autoconf
-BuildRequires:  m4
-BuildRequires:  perl
-BuildRequires:  binutils
-
-%if 0%{?centos} >= 7
+BuildRequires:  python3
 BuildRequires:  cmake3
-%else
-BuildRequires:  llvm-toolset-7-cmake
-BuildRequires:  llvm-toolset-7-runtime
-BuildRequires:  llvm-toolset-7-cmake-data
-%endif
+BuildRequires:  openssl
+BuildRequires:  openssl-devel
 
 Source0:        proxy-full-%{version}.tar.xz
 Source1:        build.sh
@@ -93,7 +83,7 @@ cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
 
 %check
 cd ..
-RUN_TESTS=true %{SOURCE2}
+TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 
 %files
 /usr/local/bin/envoy
