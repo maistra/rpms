@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit a998810d2048a4c4acf206613f9c789a0df7a5aa
+%global git_commit 180cf75fbf51b2c0b5c7380e476c31cfdda945dd
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,8 +28,8 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.10.0
-Release:        3%{?dist}
+Version:        0.11.0
+Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -495,6 +495,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.10.0-1
+- Update to Istio 1.1.5/Maistra 0.11
+
 * Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
 - Update sidecar injector to create/monitor/update webhook configuration
 
