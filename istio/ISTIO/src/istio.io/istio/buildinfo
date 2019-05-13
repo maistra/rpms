@@ -1,0 +1,6 @@
+istio.io/istio/pkg/version.buildVersion=0.1.0-1
+istio.io/istio/pkg/version.buildGitRevision=3a136c90ec5e308f236e0d7ebb5c4c5e405217f4
+istio.io/istio/pkg/version.buildUser=redhat
+istio.io/istio/pkg/version.buildHost=redhat
+istio.io/istio/pkg/version.buildDockerHub=docker.io/maistra
+istio.io/istio/pkg/version.buildStatus=Clean

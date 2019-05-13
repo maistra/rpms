@@ -11,7 +11,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        0.10.0
+Version:        0.11.0
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -53,6 +53,8 @@ install -p -m 755 cmd/ior %{buildroot}/%{_bindir}
 %{_bindir}/ior
 
 %changelog
+* Mon May 13 2019 Brian Avery <bavery@redhat.com> - 0.11.0
+- Maistra 0.11 release
 * Fri Mar 22 2019 Brian Avery <bavery@redhat.com> - 0.10.0
 - Maistra 0.10 release
 * Mon Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0

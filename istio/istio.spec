@@ -404,6 +404,9 @@ cd ISTIO/out/linux_amd64/release
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
+        echo dumping dynamic symbols for $i
+        echo dumping function symbols for $i
+        
         echo stripping: $i
         strip -o stripped/$i -s $i
         cp -pav stripped/$i $RPM_BUILD_ROOT%{_bindir}/
