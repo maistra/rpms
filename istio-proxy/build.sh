@@ -108,7 +108,7 @@ function create_artifacts() {
 function copy_binary() {
   if [ "${FETCH_DIR}" == "${RPM_BUILD_DIR}/${PROXY_NAME}" ]; then
     pushd ${RPM_BUILD_DIR}
-      if [ ! -z "${STRIP}" ]; then
+      if [ ! -z "${STRIP}" ] && [ ${STRIP} != "false" ]; then
         strip ${STRIP} ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy -o ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy-stripped
         cp ${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/bazel-bin/src/envoy/envoy-stripped ${RPM_BUILD_DIR}/envoy
       else
