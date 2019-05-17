@@ -407,7 +407,7 @@ cd ISTIO/out/linux_amd64/release
        echo "Dumping dynamic symbols for ${i}"
         nm -D $i --format=posix --defined-only \
   | awk '{ print $1 }' | sort > dynsyms
-        
+
         echo "Dumping function symbols for ${i}"
        nm $i --format=posix --defined-only \
   | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
@@ -431,7 +431,7 @@ cd ISTIO/out/linux_amd64/release
 
         echo "inject compressed data into .gnu_debugdata for ${i}"
         objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
-        
+
         cp -pav "stripped/${i}" "${RPM_BUILD_ROOT}%{_bindir}/"
     done
 %endif
@@ -521,7 +521,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.10.0-1
+* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
 - Update to Istio 1.1.5/Maistra 0.11
 
 * Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
