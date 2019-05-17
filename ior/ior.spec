@@ -7,6 +7,8 @@
 %global provider_tld    com
 %global project         maistra
 %global repo            ior
+%global with_debug 0
+
 # https://github.com/maistra/ior
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
@@ -44,7 +46,39 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/%{_bindir}
 cd IOR/src/%{provider_prefix}
 
-install -p -m 755 cmd/ior %{buildroot}/%{_bindir}
+%if 0%{?with_debug}
+	install -p -m 755 cmd/ior %{buildroot}/%{_bindir}
+%else
+	echo "Dumping dynamic symbols"
+	nm -D cmd/ior --format=posix --defined-only \
+	| awk '{ print $1 }' | sort > dynsyms
+
+	echo "Dumping function symbols"
+	nm cmd/ior --format=posix --defined-only \
+	| awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+	| sort > funcsyms
+
+	echo "Grabbing other function symbols"
+	comm -13 dynsyms funcsyms > keep_symbols
+
+	echo "Removing unnecessary debug info"
+	COMPRESSED_NAME=ior_debuginfo
+
+	objcopy -S --remove-section .gdb_index --remove-section .comment \
+	--keep-symbols=keep_symbols cmd/ior  $COMPRESSED_NAME
+
+	echo "Stripping binary"
+	mkdir stripped
+	strip -o stripped/ior -s cmd/ior
+
+	echo "Compressing debugdata"
+	xz $COMPRESSED_NAME
+
+	echo "Injecting compressed data into .gnu_debugdata"
+	objcopy --add-section .gnu_debugdata=$COMPRESSED_NAME.xz stripped/ior
+
+	cp -pav stripped/ior %{buildroot}/%{_bindir}
+%endif
 
 %files
 %license IOR/src/%{provider_prefix}/LICENSE

@@ -404,12 +404,35 @@ cd ISTIO/out/linux_amd64/release
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
-        echo dumping dynamic symbols for $i
-        echo dumping function symbols for $i
+       echo "Dumping dynamic symbols for ${i}"
+        nm -D $i --format=posix --defined-only \
+  | awk '{ print $1 }' | sort > dynsyms
         
-        echo stripping: $i
-        strip -o stripped/$i -s $i
-        cp -pav stripped/$i $RPM_BUILD_ROOT%{_bindir}/
+        echo "Dumping function symbols for ${i}"
+       nm $i --format=posix --defined-only \
+  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+  | sort > funcsyms
+
+        echo "Grabbing other function symbols from ${i}"
+        comm -13 dynsyms funcsyms > keep_symbols
+
+
+	    COMPRESSED_NAME="${i}_debuginfo"
+        echo "remove unnecessary debug info from ${i}"
+        objcopy -S --remove-section .gdb_index --remove-section .comment \
+  --keep-symbols=keep_symbols "${i}" "${COMPRESSED_NAME}"
+
+        echo "stripping: ${i}"
+        strip -o "stripped/${i}" -s $i
+
+
+        echo "compress debugdata for ${i} into ${COMPRESSED_NAME}.xz"
+        xz "${COMPRESSED_NAME}"
+
+        echo "inject compressed data into .gnu_debugdata for ${i}"
+        objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
+        
+        cp -pav "stripped/${i}" "${RPM_BUILD_ROOT}%{_bindir}/"
     done
 %endif
 popd
