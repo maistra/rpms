@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit a998810d2048a4c4acf206613f9c789a0df7a5aa
+%global git_commit 180cf75fbf51b2c0b5c7380e476c31cfdda945dd
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,8 +28,8 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        0.10.0
-Release:        3%{?dist}
+Version:        0.11.0
+Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -404,9 +404,35 @@ cd ISTIO/out/linux_amd64/release
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
-        echo stripping: $i
-        strip -o stripped/$i -s $i
-        cp -pav stripped/$i $RPM_BUILD_ROOT%{_bindir}/
+       echo "Dumping dynamic symbols for ${i}"
+        nm -D $i --format=posix --defined-only \
+  | awk '{ print $1 }' | sort > dynsyms
+
+        echo "Dumping function symbols for ${i}"
+       nm $i --format=posix --defined-only \
+  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+  | sort > funcsyms
+
+        echo "Grabbing other function symbols from ${i}"
+        comm -13 dynsyms funcsyms > keep_symbols
+
+
+	    COMPRESSED_NAME="${i}_debuginfo"
+        echo "remove unnecessary debug info from ${i}"
+        objcopy -S --remove-section .gdb_index --remove-section .comment \
+  --keep-symbols=keep_symbols "${i}" "${COMPRESSED_NAME}"
+
+        echo "stripping: ${i}"
+        strip -o "stripped/${i}" -s $i
+
+
+        echo "compress debugdata for ${i} into ${COMPRESSED_NAME}.xz"
+        xz "${COMPRESSED_NAME}"
+
+        echo "inject compressed data into .gnu_debugdata for ${i}"
+        objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
+
+        cp -pav "stripped/${i}" "${RPM_BUILD_ROOT}%{_bindir}/"
     done
 %endif
 popd
@@ -495,6 +521,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
+- Update to Istio 1.1.5/Maistra 0.11
+
 * Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
 - Update sidecar injector to create/monitor/update webhook configuration
 
