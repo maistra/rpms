@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 81407cf6a93b63c85920af34e0e8e8dc0b6355c7
+%global git_commit 4400fc6caea77eba07c81fe93cc2a0a4721904a1
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit a998810d2048a4c4acf206613f9c789a0df7a5aa
+%global charts_git_commit 5baac765da71b8a862468a9f92627bf7e3f257c5
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -38,8 +38,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        0.10.0
-Release:        6%{?dist}
+Version:        0.11.0
+Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -110,6 +110,8 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %{_sysconfdir}/istio-operator
 
 %changelog
+* Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
+- Maistra 0.11
 * Thu Apr 15 2019 Rob Cernich <rcernich@redhat.com> - 0.10.0-6
 - watch istio-system for ControlPlane CR
 - watch istio-operator for Installation CR
