@@ -8,7 +8,7 @@ if [ $# -ne 1 ] ; then
 fi
 
 INPUT_FILE="$(cd $(dirname $1) ; pwd -P)/$(basename $1)"
-OUTPUT_DIR="servicemesh-proxy"
+OUTPUT_DIR="istio-proxy"
 OUTPUT_FILE="${OUTPUT_DIR}.tar.xz"
 
 if [ ! -f "${INPUT_FILE}" ] ; then

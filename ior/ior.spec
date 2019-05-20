@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit 5a0d5e50ddecba276029387d3649e559cf3d33a3
+%global git_commit a0a64d8cfa8e6de4b924f2db4374f1065b3e91ab
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -39,7 +39,7 @@ cd IOR
 export GOPATH=$(pwd):%{gopath}
 
 pushd src/%{provider_prefix}
-make
+make VERSION=%{version} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version}-%{release}
 
 %install
 rm -rf %{buildroot}
@@ -87,6 +87,8 @@ cd IOR/src/%{provider_prefix}
 %{_bindir}/ior
 
 %changelog
+* Fri May 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.11.0
+- Update to include version info at build time
 * Mon May 13 2019 Brian Avery <bavery@redhat.com> - 0.11.0
 - Maistra 0.11 release
 * Fri Mar 22 2019 Brian Avery <bavery@redhat.com> - 0.10.0

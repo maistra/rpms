@@ -2,6 +2,10 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
+# Run unit tests
+%global with_tests 0
+# Build test binaries
+%global with_test_binaries 0
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -20,6 +24,8 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 %global checksum        ad30bfb6cc1e490a3f54ae4e01c00f78
+
+%global _prefix /usr/local
 
 Name:           istio-proxy
 Version:        0.11.0
@@ -68,18 +74,53 @@ istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio p
 
 %build
 
-%if 0%{?centos} >= 7
-  export CENTOS=true
-%endif
-
 cd ..
-FETCH_DIR= CREATE_ARTIFACTS= %{SOURCE1}
+FETCH_DIR= CREATE_ARTIFACTS= STRIP=false %{SOURCE1}
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p ${RPM_BUILD_ROOT}/usr/local/bin
+mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
-cp -pav ${RPM_BUILD_DIR}/envoy ${RPM_BUILD_ROOT}/usr/local/bin
+binaries=(envoy)
+pushd ${RPM_BUILD_DIR}
+%if 0%{?with_debug}
+    for i in "${binaries[@]}"; do
+        cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+%else
+    mkdir stripped
+    for i in "${binaries[@]}"; do
+       
+        echo "Dumping dynamic symbols for ${i}"
+        nm -D $i --format=posix --defined-only \
+  | awk '{ print $1 }' | sort > dynsyms
+        
+        echo "Dumping function symbols for ${i}"
+       nm $i --format=posix --defined-only \
+  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+  | sort > funcsyms
+
+        echo "Grabbing other function symbols from ${i}"
+        comm -13 dynsyms funcsyms > keep_symbols
+
+
+	COMPRESSED_NAME="${i}_debuginfo"
+        echo "remove unnecessary debug info from ${i}"
+        objcopy -S --remove-section .gdb_index --remove-section .comment \
+  --keep-symbols=keep_symbols "${i}" "${COMPRESSED_NAME}"
+
+        echo "stripping: ${i}"
+        strip -o "stripped/${i}" -s $i
+
+        echo "compress debugdata for ${i} into ${COMPRESSED_NAME}.xz"
+        xz "${COMPRESSED_NAME}"
+
+        echo "inject compressed data into .gnu_debugdata for ${i}"
+        objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
+        
+        cp -pav "stripped/${i}" "${RPM_BUILD_ROOT}%{_bindir}/"
+    done
+%endif
+popd
 
 %check
 cd ..
@@ -89,6 +130,8 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Tue May 14 2019 William DeCoste <wdecoste@redhat.com>
+  Release 0.11.0-0 
 * Thu Mar 07 2019 Dmitri Dolguikh <ddolguik@redhat.com>
   Release 0.9.0-2
 * Mon Mar 04 2019 Dmitri Dolguikh <ddolguik@redhat.com>

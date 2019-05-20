@@ -297,6 +297,86 @@ function replace_ssl() {
   fi
 }
 
+function add_annobin_flags() {
+  pushd ${FETCH_DIR}/istio-proxy/proxy
+    BUILD_OPTIONS="build --cxxopt -fPIE
+build --cxxopt -fPIC
+build --cxxopt -fcf-protection=full
+build --cxxopt -fstack-clash-protection
+build --cxxopt -fplugin=annobin
+build --cxxopt -fstack-protector-all
+build --cxxopt -fstack-protector-strong
+build --cxxopt -O2
+build --cxxopt -fexceptions
+build --cxxopt -D_GLIBCXX_ASSERTIONS
+"
+echo "${BUILD_OPTIONS}" >> .bazelrc
+
+  popd
+
+  pushd ${CACHE_DIR}/base/external/local_config_cc
+
+    FILE="CROSSTOOL"
+    DELETE_START_PATTERN="cxx_flag: \"-std=c++0x\""
+    DELETE_STOP_PATTERN=""
+    START_OFFSET="0"
+    ADD_TEXT="  cxx_flag: \"-std=c++0x\"
+  cxx_flag: \"-fPIC\"
+  cxx_flag: \"-fPIE\"
+  cxx_flag: \"-fcf-protection=full\"
+  cxx_flag: \"-fplugin=annobin\"
+  cxx_flag: \"-O2\"
+  cxx_flag: \"-fstack-protector-strong\"
+  cxx_flag: \"-fstack-protector-all\"
+  cxx_flag: \"-fexceptions\"
+  cxx_flag: \"-D_GLIBCXX_ASSERTIONS\"
+"
+    replace_text
+
+    FILE="CROSSTOOL"
+    DELETE_START_PATTERN="compiler_flag: \"-Wall\""
+    DELETE_STOP_PATTERN=""
+    START_OFFSET="0"
+    ADD_TEXT="  compiler_flag: \"-Wall\"
+  compiler_flag: \"-fPIC\"
+  compiler_flag: \"-fPIE\"
+  compiler_flag: \"-fcf-protection=full\"
+  compiler_flag: \"-fplugin=annobin\"
+  compiler_flag: \"-O2\"
+  compiler_flag: \"-fstack-protector-strong\"
+  compiler_flag: \"-fstack-protector-all\"
+  compiler_flag: \"-fexceptions\"
+  compiler_flag: \"-D_GLIBCXX_ASSERTIONS\"
+"
+    replace_text
+
+    FILE="CROSSTOOL"
+    DELETE_START_PATTERN="compiler_flag: \"-D_FORTIFY_SOURCE=1\""
+    DELETE_STOP_PATTERN=""
+    START_OFFSET="0"
+    ADD_TEXT="    compiler_flag: \"-D_FORTIFY_SOURCE=2\"
+    compiler_flag: \"-fPIC\"
+    compiler_flag: \"-fPIE\"
+    compiler_flag: \"-fplugin=annobin\"
+    compiler_flag: \"-fcf-protection=full\"
+    compiler_flag: \"-fstack-clash-protection\"
+    compiler_flag: \"-fplugin=annobin\"
+    compiler_flag: \"-fstack-protector-all\"
+    compiler_flag: \"-fstack-protector-strong\"
+    compiler_flag: \"-fexceptions\"
+    compiler_flag: \"-D_GLIBCXX_ASSERTIONS\"
+"
+    replace_text
+
+  popd
+ 
+  pushd ${CACHE_DIR}/base/external/com_github_luajit_luajit
+    sed -i 's|CCOPT= -O2 -fomit-frame-pointer|CCOPT= -O2 -fomit-frame-pointer -fPIC -fPIE -fcf-protection=full -fplugin=annobin -fstack-protector-strong -fstack-protector-all|g' src/Makefile
+  popd
+
+}
+
+
 preprocess_envs
 fetch
 patch_class_memaccess
@@ -310,4 +390,5 @@ replace_ssl
 add_BUILD_SCM_REVISIONS
 strip_latomic
 correct_links
+add_annobin_flags
 create_tarball

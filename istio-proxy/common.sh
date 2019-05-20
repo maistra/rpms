@@ -28,3 +28,20 @@ function set_path() {
   export PATH=$PATH:$HOME
 }
 
+function replace_text() {
+  START=$(grep -nr "${DELETE_START_PATTERN}" ${FILE} | cut -d':' -f1)
+  START=$((${START} + ${START_OFFSET}))
+  if [[ ! -z "${DELETE_STOP_PATTERN}" ]]; then
+    STOP=$(tail --lines=+${START}  ${FILE} | grep -nr "${DELETE_STOP_PATTERN}" - |  cut -d':' -f1 | head -1)
+    CUT=$((${START} + ${STOP} - 1))
+  else
+    CUT=$((${START}))
+  fi
+  CUT_TEXT=$(sed -n "${START},${CUT} p" ${FILE})
+  sed -i "${START},${CUT} d" ${FILE}
+
+  if [[ ! -z "${ADD_TEXT}" ]]; then
+    ex -s -c "${START}i|${ADD_TEXT}" -c x ${FILE}
+  fi
+}
+
