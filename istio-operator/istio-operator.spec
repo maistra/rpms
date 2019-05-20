@@ -112,6 +112,7 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %changelog
 * Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
 - Maistra 0.11
+
 * Thu Apr 15 2019 Rob Cernich <rcernich@redhat.com> - 0.10.0-6
 - watch istio-system for ControlPlane CR
 - watch istio-operator for Installation CR
