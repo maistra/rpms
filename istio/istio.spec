@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 180cf75fbf51b2c0b5c7380e476c31cfdda945dd
+%global git_commit 5baac765da71b8a862468a9f92627bf7e3f257c5
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.11.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -521,7 +521,18 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-2
+- Add support for multitenancy
+
 * Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
+- Update to Istio 1.1.5/Maistra 0.11
+
+* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
+- Update to Istio 1.1.5/Maistra 0.11
+
+* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
+- Update to Istio 1.1.5/Maistra 0.11
+
 - Update to Istio 1.1.5/Maistra 0.11
 
 * Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
