@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.11.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -521,6 +521,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-2
+- Add support for multitenancy
+
 * Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
 - Update to Istio 1.1.5/Maistra 0.11
 
