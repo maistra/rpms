@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 4400fc6caea77eba07c81fe93cc2a0a4721904a1
+%global git_commit 85735f31c3e2f4ebf841fa1e9d80b8fb27dc4264
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        0.11.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -110,6 +110,9 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %{_sysconfdir}/istio-operator
 
 %changelog
+* Tue May 21 2019 Brian Avery <bavery@redhat.com> - 0.11.0-2
+- Update Kiali version
+
 * Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
 - Maistra 0.11
 
