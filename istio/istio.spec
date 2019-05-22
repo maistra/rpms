@@ -521,7 +521,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Wed May 22, 2019 Brian Avery <bavery@redhat.com> - 0.11.0-3
+* Wed May 22 2019 Brian Avery <bavery@redhat.com> - 0.11.0-3
 - Fixed Maistra 422 -- return meaningful resource versions
 
 * Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-2
