@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 32c0cb1a2b0bf6b11d6e997db2fa78eda69cc695
+%global git_commit 178ba6ec2f1457acadbf5f4c8609bd64a86dcb3e
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit 5baac765da71b8a862468a9f92627bf7e3f257c5
+%global charts_git_commit 5b646bfb6c0f13da6f7bbace80ba6986ec64acd8
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        0.11.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -110,6 +110,9 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %{_sysconfdir}/istio-operator
 
 %changelog
+* Thu May 23 2019 Kevin Conner <kconner@redhat.com> - 0.11.0-4
+* Pull in latest operator changes
+
 * Wed May 22 2019 Brian Avery <bavery@redhat.com> - 0.11.0-3
 * Move Jaeger earlier in the installation process
 

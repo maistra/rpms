@@ -3,14 +3,15 @@
 NEW_SOURCES=""
 
 function usage() {
-    echo "Usage: $0 [-i <SHA of istio-operator>]"
+    echo "Usage: $0 [-i <SHA of istio-operator>] [-c <SHA of istio>]"
     echo
     exit 0
 }
 
-while getopts ":i:v:" opt; do
+while getopts ":i:c:v:" opt; do
   case ${opt} in
     i) ISTIO_OPERATOR_SHA="${OPTARG}";;
+    c) ISTIO_CHARTS_SHA="${OPTARG}";;
     *) usage;;
   esac
 done
