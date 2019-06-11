@@ -16,7 +16,7 @@ function set_default_envs() {
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.11
+    PROXY_GIT_BRANCH=maistra-0.12
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
