@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit 74878c5d0f82e501871ab6302fd69e323e47f116
+%global charts_git_commit 7b77ae81a3f95cf0d0b7d30bbcacc8d151786d2d
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -38,8 +38,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        0.11.0
-Release:        6%{?dist}
+Version:        0.12.0
+Release:        2%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -110,6 +110,8 @@ cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 %{_sysconfdir}/istio-operator
 
 %changelog
+* Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-1
+- Update to Istio 1.1.8
 * Mon May 27 2019 Kevin Conner <kconner@redhat.com> - 0.11.0-6
 * Pull in latest operator changes
 
