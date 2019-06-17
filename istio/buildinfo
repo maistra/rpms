@@ -1,4 +1,4 @@
-istio.io/istio/pkg/version.buildVersion=0.12.0-2
+istio.io/istio/pkg/version.buildVersion=0.12.0-3
 istio.io/istio/pkg/version.buildGitRevision=7b77ae81a3f95cf0d0b7d30bbcacc8d151786d2d
 istio.io/istio/pkg/version.buildUser=redhat
 istio.io/istio/pkg/version.buildHost=redhat

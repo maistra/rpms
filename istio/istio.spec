@@ -521,7 +521,7 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Mon Jun 17 2019 Jonh Wendell <bavery@redhat.com> - 0.12.0-3
+* Mon Jun 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.12.0-3
 - Updated to latest Maistra 0.12
 
 * Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
