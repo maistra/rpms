@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 1653747e798fa32b5fe6ced74cd2e931167ff7f3
+%global git_commit 7b77ae81a3f95cf0d0b7d30bbcacc8d151786d2d
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -29,7 +29,7 @@
 
 Name:           istio
 Version:        0.12.0
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -521,6 +521,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Mon Jun 17 2019 Jonh Wendell <bavery@redhat.com> - 0.12.0-3
+- Updated to latest Maistra 0.12
+
 * Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
 - Updated to Maistra 0.12/Istio 1.1.8
 
