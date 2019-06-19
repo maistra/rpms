@@ -95,18 +95,17 @@ function correct_links() {
   # replace fully qualified links with relative links (former does not travel)
   pushd ${CACHE_DIR}
     find . -lname '/*' -exec ksh -c '
-      PWD=$(pwd)
-echo $PWD
+      CACHE_WORKING_DIR=$(pwd)
       for link; do
         target=$(readlink "$link")
         link=${link#./}
         root=${link//+([!\/])/..}; root=${root#/}; root=${root%..}
         rm "$link"
         target="$root${target#/}"
-        target=$(echo $target | sed "s|../../..${PWD}/base|../../../base|")
-        target=$(echo $target | sed "s|../..${PWD}/base|../../base|")
-        target=$(echo $target | sed "s|../../..${PWD}/root|../../../root|")
-        target=$(echo $target | sed "s|..${PWD}/root|../root|")
+        target=$(echo $target | sed "s|../../..${CACHE_WORKING_DIR}/base|../../../base|")
+        target=$(echo $target | sed "s|../..${CACHE_WORKING_DIR}/base|../../base|")
+        target=$(echo $target | sed "s|../../..${CACHE_WORKING_DIR}/root|../../../root|")
+        target=$(echo $target | sed "s|..${CACHE_WORKING_DIR}/root|../root|")
         target=$(echo $target | sed "s|../../../usr/lib/jvm|/usr/lib/jvm|")
         ln -s "$target" "$link"
       done
@@ -150,18 +149,14 @@ function fetch() {
     pushd ${FETCH_DIR}/istio-proxy
 
       #clone proxy
-      if [ ! -d "proxy" ]; then
-        git clone ${PROXY_GIT_REPO}
-        pushd ${FETCH_DIR}/istio-proxy/proxy
+      git clone ${PROXY_GIT_REPO}
+      pushd ${FETCH_DIR}/istio-proxy/proxy
         git checkout ${PROXY_GIT_BRANCH}
-          if [ -d ".git" ]; then
-            SHA="$(git rev-parse --verify HEAD)"
-          fi
-        popd
+        SHA="$(git rev-parse --verify HEAD)"
+      popd
 
-        use_local_go
-        copy_bazel_build_status
-      fi
+      use_local_go
+      copy_bazel_build_status
 
       bazel_dir="bazel"
       if [ "${DEBUG_FETCH}" == "true" ]; then
@@ -272,7 +267,7 @@ function replace_ssl() {
 
       git clone http://github.com/maistra/envoy-openssl -b ${PROXY_GIT_BRANCH}
       pushd envoy-openssl
-        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL
+        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${SHA}
       popd
       rm -rf envoy-openssl
 
