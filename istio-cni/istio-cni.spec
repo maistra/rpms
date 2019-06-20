@@ -40,7 +40,6 @@ export GOPATH=$(pwd):%{gopath}
 
 pushd src/%{provider_prefix}
 make build ISTIO_OUT=bin ISTIO_CNI_RELPATH=github.com/maistra/istio-cni
-# make VERSION=%{version} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version}-%{release}
 
 %install
 rm -rf %{buildroot}
