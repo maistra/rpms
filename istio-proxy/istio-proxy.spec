@@ -23,13 +23,13 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum        ad30bfb6cc1e490a3f54ae4e01c00f78
+%global checksum        6e6bc38adb9619dabd9485d989ea729d
 
 %global _prefix /usr/local
 
 Name:           istio-proxy
 Version:        0.12.0
-Release:        0%{?dist}
+Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
@@ -49,7 +49,7 @@ BuildRequires:  cmake3
 BuildRequires:  openssl
 BuildRequires:  openssl-devel
 
-Source0:        proxy-full-%{version}.tar.xz
+Source0:        istio-proxy.%{checksum}.tar.xz
 Source1:        build.sh
 Source2:        test.sh
 Source3:        fetch.sh
@@ -130,6 +130,10 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Thu Jun 20 2019 William DeCoste <wdecoste@redhat.com>
+  Release 0.12.0-1
+* Tue Jun 11 2019 William DeCoste <wdecoste@redhat.com>
+  Release 0.12.0-0
 * Tue May 14 2019 William DeCoste <wdecoste@redhat.com>
   Release 0.11.0-0 
 * Thu Mar 07 2019 Dmitri Dolguikh <ddolguik@redhat.com>
