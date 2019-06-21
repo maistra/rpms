@@ -31,21 +31,18 @@ tar zxf %{SOURCE0} -C PROMU/src/github.com/prometheus/promu --strip=1
 cd PROMU
 export GOPATH=$(pwd):%{gopath}
 
-pushd src/github.com/prometheus/promu
+cd src/github.com/prometheus/promu
 go build
-popd
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
-pushd .
 cd PROMU/src/github.com/prometheus/promu
 
 mkdir stripped
 strip -o stripped/promu -s promu
 cp -pav stripped/promu "${RPM_BUILD_ROOT}%{_bindir}/"
-popd
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}

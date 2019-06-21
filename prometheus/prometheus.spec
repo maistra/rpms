@@ -43,10 +43,9 @@ tar zxf %{SOURCE0} -C PROMETHEUS/src/github.com/prometheus/prometheus --strip=1
 %build
 cd PROMETHEUS
 export GOPATH=$(pwd):%{gopath}
-pushd src/github.com/prometheus/prometheus
+cd src/github.com/prometheus/prometheus
 
 PROMU=$(which promu) make -e build
-popd
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -56,7 +55,6 @@ mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{name}/consoles/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/
 
 binaries=(prometheus promtool)
-pushd .
 cd PROMETHEUS/src/github.com/prometheus/prometheus
 %if 0%{?with_debug} > 0
   for i in "${binaries[@]}"; do
@@ -105,7 +103,6 @@ ln -sf %{_datadir}/%{name}/console_libraries/ $RPM_BUILD_ROOT%{_sysconfdir}/%{na
 cp -a consoles/ $RPM_BUILD_ROOT%{_datadir}/%{name}/
 ln -sf %{_datadir}/%{name}/consoles/ $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/
 cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/%{name}.yml
-popd
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}

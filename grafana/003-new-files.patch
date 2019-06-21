@@ -1,0 +1,1627 @@
+diff --git a/conf/distro-defaults.ini b/conf/distro-defaults.ini
+new file mode 100644
+index 000000000..eeb974369
+--- /dev/null
++++ b/conf/distro-defaults.ini
+@@ -0,0 +1,601 @@
++##################### Grafana Configuration Defaults for distros #####################
++#
++# Do not modify this file in grafana installs
++#
++
++# possible values : production, development
++app_mode = production
++
++# instance name, defaults to HOSTNAME environment variable value or hostname if HOSTNAME var is empty
++instance_name = ${HOSTNAME}
++
++#################################### Paths ###############################
++[paths]
++# Path to where grafana can store temp files, sessions, and the sqlite3 db (if that is used)
++data = /var/lib/grafana
++
++# Temporary files in `data` directory older than given duration will be removed
++temp_data_lifetime = 24h
++
++# Directory where grafana can store logs
++logs = /var/log/grafana
++
++# Directory where grafana will automatically scan and look for plugins
++plugins = /var/lib/grafana/plugins
++
++# folder that contains provisioning config files that grafana will apply on startup and while running.
++provisioning = conf/provisioning
++
++#################################### Server ##############################
++[server]
++# Protocol (http, https, socket)
++protocol = http
++
++# The ip address to bind to, empty will bind to all interfaces
++http_addr =
++
++# The http port to use
++http_port = 3000
++
++# The public facing domain name used to access grafana from a browser
++domain = localhost
++
++# Redirect to correct domain if host header does not match domain
++# Prevents DNS rebinding attacks
++enforce_domain = false
++
++# The full public facing url
++root_url = %(protocol)s://%(domain)s:%(http_port)s/
++
++# Log web requests
++router_logging = false
++
++# the path relative working path
++static_root_path = public
++
++# enable gzip
++enable_gzip = false
++
++# https certs & key file
++cert_file =
++cert_key =
++
++# Unix socket path
++socket = /tmp/grafana.sock
++
++#################################### Database ############################
++[database]
++# You can configure the database connection by specifying type, host, name, user and password
++# as separate properties or as on string using the url property.
++
++# Either "mysql", "postgres" or "sqlite3", it's your choice
++type = sqlite3
++host = 127.0.0.1:3306
++name = grafana
++user = root
++# If the password contains # or ; you have to wrap it with triple quotes. Ex """#password;"""
++password =
++# Use either URL or the previous fields to configure the database
++# Example: mysql://user:secret@host:port/database
++url =
++
++# Max idle conn setting default is 2
++max_idle_conn = 2
++
++# Max conn setting default is 0 (mean not set)
++max_open_conn =
++
++# Connection Max Lifetime default is 14400 (means 14400 seconds or 4 hours)
++conn_max_lifetime = 14400
++
++# Set to true to log the sql calls and execution times.
++log_queries =
++
++# For "postgres", use either "disable", "require" or "verify-full"
++# For "mysql", use either "true", "false", or "skip-verify".
++ssl_mode = disable
++
++ca_cert_path =
++client_key_path =
++client_cert_path =
++server_cert_name =
++
++# For "sqlite3" only, path relative to data_path setting
++path = grafana.db
++
++# For "sqlite3" only. cache mode setting used for connecting to the database
++cache_mode = private
++
++#################################### Cache server #############################
++[remote_cache]
++# Either "redis", "memcached" or "database" default is "database"
++type = database
++
++# cache connectionstring options
++# database: will use Grafana primary database.
++# redis: config like redis server e.g. `addr=127.0.0.1:6379,pool_size=100,db=grafana`
++# memcache: 127.0.0.1:11211
++connstr =
++
++#################################### Data proxy ###########################
++[dataproxy]
++
++# This enables data proxy logging, default is false
++logging = false
++
++# How long the data proxy should wait before timing out default is 30 (seconds)
++timeout = 30
++
++# If enabled and user is not anonymous, data proxy will add X-Grafana-User header with username into the request, default is false.
++send_user_header = false
++
++#################################### Analytics ###########################
++[analytics]
++# Server reporting, sends usage counters to stats.grafana.org every 24 hours.
++# No ip addresses are being tracked, only simple counters to track
++# running instances, dashboard and error counts. It is very helpful to us.
++# Change this option to false to disable reporting.
++reporting_enabled = false
++
++# Set to false to disable all checks to https://grafana.com
++# for new versions (grafana itself and plugins), check is used
++# in some UI views to notify that grafana or plugin update exists
++# This option does not cause any auto updates, nor send any information
++# only a GET request to https://grafana.com to get latest versions
++check_for_updates = false
++
++# Google Analytics universal tracking code, only enabled if you specify an id here
++google_analytics_ua_id =
++
++# Google Tag Manager ID, only enabled if you specify an id here
++google_tag_manager_id =
++
++#################################### Security ############################
++[security]
++# default admin user, created on startup
++admin_user = admin
++
++# default admin password, can be changed before first start of grafana, or in profile settings
++admin_password = admin
++
++# used for signing
++secret_key = SW2YcwTIb9zpOOhoPsMm
++
++# disable gravatar profile images
++disable_gravatar = false
++
++# data source proxy whitelist (ip_or_domain:port separated by spaces)
++data_source_proxy_whitelist =
++
++# disable protection against brute force login attempts
++disable_brute_force_login_protection = false
++
++# set to true if you host Grafana behind HTTPS. default is false.
++cookie_secure = false
++
++# set cookie SameSite attribute. defaults to `lax`. can be set to "lax", "strict" and "none"
++cookie_samesite = lax
++
++# set to true if you want to allow browsers to render Grafana in a <frame>, <iframe>, <embed> or <object>. default is false.
++allow_embedding = false
++
++#################################### Snapshots ###########################
++[snapshots]
++# snapshot sharing options
++external_enabled = false
++external_snapshot_url = https://snapshots-origin.raintank.io
++external_snapshot_name = Publish to snapshot.raintank.io
++
++# remove expired snapshot
++snapshot_remove_expired = true
++
++#################################### Dashboards ##################
++
++[dashboards]
++# Number dashboard versions to keep (per dashboard). Default: 20, Minimum: 1
++versions_to_keep = 20
++
++#################################### Users ###############################
++[users]
++# disable user signup / registration
++allow_sign_up = false
++
++# Allow non admin users to create organizations
++allow_org_create = false
++
++# Set to true to automatically assign new users to the default organization (id 1)
++auto_assign_org = true
++
++# Set this value to automatically add new users to the provided organization (if auto_assign_org above is set to true)
++auto_assign_org_id = 1
++
++# Default role new users will be automatically assigned (if auto_assign_org above is set to true)
++auto_assign_org_role = Viewer
++
++# Require email validation before sign up completes
++verify_email_enabled = false
++
++# Background text for the user field on the login page
++login_hint = email or username
++password_hint = password
++
++# Default UI theme ("dark" or "light")
++default_theme = dark
++
++# External user management
++external_manage_link_url =
++external_manage_link_name =
++external_manage_info =
++
++# Viewers can edit/inspect dashboard settings in the browser. But not save the dashboard.
++viewers_can_edit = false
++
++# Editors can administrate dashboard, folders and teams they create
++editors_can_admin = false
++
++[auth]
++# Login cookie name
++login_cookie_name = grafana_session
++
++# The lifetime (days) an authenticated user can be inactive before being required to login at next visit. Default is 7 days.
++login_maximum_inactive_lifetime_days = 7
++
++# The maximum lifetime (days) an authenticated user can be logged in since login time before being required to login. Default is 30 days.
++login_maximum_lifetime_days = 30
++
++# How often should auth tokens be rotated for authenticated users when being active. The default is each 10 minutes.
++token_rotation_interval_minutes = 10
++
++# Set to true to disable (hide) the login form, useful if you use OAuth
++disable_login_form = false
++
++# Set to true to disable the signout link in the side menu. useful if you use auth.proxy
++disable_signout_menu = false
++
++# URL to redirect the user to after sign out
++signout_redirect_url =
++
++# Set to true to attempt login with OAuth automatically, skipping the login screen.
++# This setting is ignored if multiple OAuth providers are configured.
++oauth_auto_login = false
++
++#################################### Anonymous Auth ######################
++[auth.anonymous]
++# enable anonymous access
++enabled = false
++
++# specify organization name that should be used for unauthenticated users
++org_name = Main Org.
++
++# specify role for unauthenticated users
++org_role = Viewer
++
++#################################### Github Auth #########################
++[auth.github]
++enabled = false
++allow_sign_up = true
++client_id = some_id
++client_secret = some_secret
++scopes = user:email,read:org
++auth_url = https://github.com/login/oauth/authorize
++token_url = https://github.com/login/oauth/access_token
++api_url = https://api.github.com/user
++team_ids =
++allowed_organizations =
++
++#################################### GitLab Auth #########################
++[auth.gitlab]
++enabled = false
++allow_sign_up = true
++client_id = some_id
++client_secret = some_secret
++scopes = api
++auth_url = https://gitlab.com/oauth/authorize
++token_url = https://gitlab.com/oauth/token
++api_url = https://gitlab.com/api/v4
++allowed_groups =
++
++#################################### Google Auth #########################
++[auth.google]
++enabled = false
++allow_sign_up = true
++client_id = some_client_id
++client_secret = some_client_secret
++scopes = https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email
++auth_url = https://accounts.google.com/o/oauth2/auth
++token_url = https://accounts.google.com/o/oauth2/token
++api_url = https://www.googleapis.com/oauth2/v1/userinfo
++allowed_domains =
++hosted_domain =
++
++#################################### Grafana.com Auth ####################
++# legacy key names (so they work in env variables)
++[auth.grafananet]
++enabled = false
++allow_sign_up = true
++client_id = some_id
++client_secret = some_secret
++scopes = user:email
++allowed_organizations =
++
++[auth.grafana_com]
++enabled = false
++allow_sign_up = true
++client_id = some_id
++client_secret = some_secret
++scopes = user:email
++allowed_organizations =
++
++#################################### Generic OAuth #######################
++[auth.generic_oauth]
++name = OAuth
++enabled = false
++allow_sign_up = true
++client_id = some_id
++client_secret = some_secret
++scopes = user:email
++email_attribute_name = email:primary
++auth_url =
++token_url =
++api_url =
++team_ids =
++allowed_organizations =
++tls_skip_verify_insecure = false
++tls_client_cert =
++tls_client_key =
++tls_client_ca =
++send_client_credentials_via_post = false
++
++#################################### Basic Auth ##########################
++[auth.basic]
++enabled = true
++
++#################################### Auth Proxy ##########################
++[auth.proxy]
++enabled = false
++header_name = X-WEBAUTH-USER
++header_property = username
++auto_sign_up = true
++ldap_sync_ttl = 60
++whitelist =
++headers =
++
++#################################### Auth LDAP ###########################
++[auth.ldap]
++enabled = false
++config_file = /etc/grafana/ldap.toml
++allow_sign_up = true
++
++# LDAP backround sync (Enterprise only)
++sync_cron = @hourly
++active_sync_enabled = false
++
++#################################### SMTP / Emailing #####################
++[smtp]
++enabled = false
++host = localhost:25
++user =
++# If the password contains # or ; you have to wrap it with triple quotes. Ex """#password;"""
++password =
++cert_file =
++key_file =
++skip_verify = false
++from_address = admin@grafana.localhost
++from_name = Grafana
++ehlo_identity =
++
++[emails]
++welcome_email_on_sign_up = false
++templates_pattern = emails/*.html
++
++#################################### Logging ##########################
++[log]
++# Either "console", "file", "syslog". Default is console and file
++# Use space to separate multiple modes, e.g. "console file"
++mode = console file
++
++# Either "debug", "info", "warn", "error", "critical", default is "info"
++level = info
++
++# optional settings to set different levels for specific loggers. Ex filters = sqlstore:debug
++filters =
++
++# For "console" mode only
++[log.console]
++level =
++
++# log line format, valid options are text, console and json
++format = console
++
++# For "file" mode only
++[log.file]
++level =
++
++# log line format, valid options are text, console and json
++format = text
++
++# This enables automated log rotate(switch of following options), default is true
++log_rotate = true
++
++# Max line number of single file, default is 1000000
++max_lines = 1000000
++
++# Max size shift of single file, default is 28 means 1 << 28, 256MB
++max_size_shift = 28
++
++# Segment log daily, default is true
++daily_rotate = true
++
++# Expired days of log file(delete after max days), default is 7
++max_days = 7
++
++[log.syslog]
++level =
++
++# log line format, valid options are text, console and json
++format = text
++
++# Syslog network type and address. This can be udp, tcp, or unix. If left blank, the default unix endpoints will be used.
++network =
++address =
++
++# Syslog facility. user, daemon and local0 through local7 are valid.
++facility =
++
++# Syslog tag. By default, the process' argv[0] is used.
++tag =
++
++#################################### Usage Quotas ########################
++[quota]
++enabled = false
++
++#### set quotas to -1 to make unlimited. ####
++# limit number of users per Org.
++org_user = 10
++
++# limit number of dashboards per Org.
++org_dashboard = 100
++
++# limit number of data_sources per Org.
++org_data_source = 10
++
++# limit number of api_keys per Org.
++org_api_key = 10
++
++# limit number of orgs a user can create.
++user_org = 10
++
++# Global limit of users.
++global_user = -1
++
++# global limit of orgs.
++global_org = -1
++
++# global limit of dashboards
++global_dashboard = -1
++
++# global limit of api_keys
++global_api_key = -1
++
++# global limit on number of logged in users.
++global_session = -1
++
++#################################### Alerting ############################
++[alerting]
++# Disable alerting engine & UI features
++enabled = true
++# Makes it possible to turn off alert rule execution but alerting UI is visible
++execute_alerts = true
++
++# Default setting for new alert rules. Defaults to categorize error and timeouts as alerting. (alerting, keep_state)
++error_or_timeout = alerting
++
++# Default setting for how Grafana handles nodata or null values in alerting. (alerting, no_data, keep_state, ok)
++nodata_or_nullvalues = no_data
++
++# Alert notifications can include images, but rendering many images at the same time can overload the server
++# This limit will protect the server from render overloading and make sure notifications are sent out quickly
++concurrent_render_limit = 5
++
++# Default setting for alert calculation timeout. Default value is 30
++evaluation_timeout_seconds = 30
++
++# Default setting for alert notification timeout. Default value is 30
++notification_timeout_seconds = 30
++
++# Default setting for max attempts to sending alert notifications. Default value is 3
++max_attempts = 3
++
++
++#################################### Explore #############################
++[explore]
++# Enable the Explore section
++enabled = true
++
++#################################### Internal Grafana Metrics ############
++# Metrics available at HTTP API Url /metrics
++[metrics]
++enabled           = true
++interval_seconds  = 10
++
++#If both are set, basic auth will be required for the metrics endpoint.
++basic_auth_username =
++basic_auth_password =
++
++# Send internal Grafana metrics to graphite
++[metrics.graphite]
++# Enable by setting the address setting (ex localhost:2003)
++address =
++prefix = prod.grafana.%(instance_name)s.
++
++[grafana_net]
++url = https://grafana.org
++
++[grafana_com]
++url = https://grafana.com
++
++#################################### Distributed tracing ############
++[tracing.jaeger]
++# jaeger destination (ex localhost:6831)
++address =
++# tag that will always be included in when creating new spans. ex (tag1:value1,tag2:value2)
++always_included_tag =
++# Type specifies the type of the sampler: const, probabilistic, rateLimiting, or remote
++sampler_type = const
++# jaeger samplerconfig param
++# for "const" sampler, 0 or 1 for always false/true respectively
++# for "probabilistic" sampler, a probability between 0 and 1
++# for "rateLimiting" sampler, the number of spans per second
++# for "remote" sampler, param is the same as for "probabilistic"
++# and indicates the initial sampling rate before the actual one
++# is received from the mothership
++sampler_param = 1
++
++#################################### External Image Storage ##############
++[external_image_storage]
++# You can choose between (s3, webdav, gcs, azure_blob, local)
++provider =
++
++[external_image_storage.s3]
++bucket_url =
++bucket =
++region =
++path =
++access_key =
++secret_key =
++
++[external_image_storage.webdav]
++url =
++username =
++password =
++public_url =
++
++[external_image_storage.gcs]
++key_file =
++bucket =
++path =
++
++[external_image_storage.azure_blob]
++account_name =
++account_key =
++container_name =
++
++[external_image_storage.local]
++# does not require any configuration
++
++[rendering]
++# Options to configure external image rendering server like https://github.com/grafana/grafana-image-renderer
++server_url =
++callback_url =
++
++[panels]
++# here for to support old env variables, can remove after a few months
++enable_alpha = false
++disable_sanitize_html = false
++
++[plugins]
++enable_alpha = false
++app_tls_skip_verify_insecure = false
++
++[enterprise]
++license_path =
+diff --git a/docs/man/man1/grafana-cli.1 b/docs/man/man1/grafana-cli.1
+new file mode 100644
+index 000000000..171748fcd
+--- /dev/null
++++ b/docs/man/man1/grafana-cli.1
+@@ -0,0 +1,51 @@
++.TH GRAFANA "1" "February 2019" "Grafana cli version 5.4.3" "User Commands"
++.SH NAME
++grafana-cli \- command line administration for the Grafana metrics dashboard and graph editor
++.SH DESCRIPTION
++.SS "NAME:"
++.IP
++grafana-cli
++.SS "USAGE:"
++.IP
++\fBgrafana\-cli\fP [\fIglobal options\fP] \fIcommand\fP [\fIcommand options\fP] [\fIarguments\fP...]
++.SS "COMMANDS:"
++.TP
++plugins
++Manage plugins for grafana
++.TP
++admin
++Grafana admin commands
++.TP
++help, h
++Shows a list of commands or help for one command
++.SS "GLOBAL OPTIONS:"
++.TP
++\fB\-\-pluginsDir\fR value
++path to the grafana plugin directory (default: "/var/lib/grafana/plugins") [$GF_PLUGIN_DIR]
++.TP
++\fB\-\-repo\fR value
++url to the plugin repository (default: "https://grafana.com/api/plugins") [$GF_PLUGIN_REPO]
++.TP
++\fB\-\-pluginUrl\fR value
++Full url to the plugin zip file instead of downloading the plugin from grafana.com/api [$GF_PLUGIN_URL]
++.TP
++\fB\-\-insecure\fR
++Skip TLS verification (insecure)
++.TP
++\fB\-\-debug\fR, \fB\-d\fR
++enable debug logging
++.TP
++\fB\-\-help\fR, \fB\-h\fR
++show help
++.TP
++\fB\-\-version\fR, \fB\-v\fR
++print the version
++.SH "SEE ALSO"
++Additional documentation for
++.B grafana-cli
++is available on-line at
++.BR http://docs.grafana.org/administration/cli/ .
++The full documentation for
++.B Grafana
++is available on-line at
++.BR http://docs.grafana.org/ .
+diff --git a/docs/man/man1/grafana-server.1 b/docs/man/man1/grafana-server.1
+new file mode 100644
+index 000000000..30b7c1306
+--- /dev/null
++++ b/docs/man/man1/grafana-server.1
+@@ -0,0 +1,156 @@
++.TH VERSION "1" "February 2019" "Version 5.4.3" "User Commands"
++.SH NAME
++grafana-server \- back-end server for the Grafana metrics dashboard and graph editor
++.SH DESCRIPTION
++.B grafana-server
++is the back-end server for the Grafana metrics dashboard and graph editor.
++The
++.B grafana-server
++program should not normally be run from the command line,
++except when testing or for development purposes.
++Rather it should be managed by
++.BR systemd .
++After installing Grafana, the systemd service should be enabled and started as follows:
++.P
++.in 1i
++.B systemctl daemon-reload
++.br
++.B systemctl enable grafana-server.service
++.br
++.B systemctl start grafana-server.service
++.in
++.P
++.SH OPTIONS
++The
++.B gafana-server
++configuration is specified in
++.BR /etc/grafana/grafana.ini
++and is well documented with comments.
++The command-line options listed below override options of
++the same (or similar) name in the configuration file and also provide
++additional options for testing Grafana.
++.P
++.HP
++\fB\-config\fR string
++.IP
++path to config file
++.HP
++\fB\-homepath\fR string
++.IP
++path to grafana install/home path, defaults to working directory
++.HP
++\fB\-packaging\fR string
++.IP
++describes the way Grafana was installed (default "unknown")
++.HP
++\fB\-pidfile\fR string
++.IP
++path to pid file
++.HP
++\fB\-profile\fR
++.IP
++Turn on pprof profiling
++.HP
++\fB\-profile\-port\fR int
++.IP
++Define custom port for profiling (default 6060)
++.HP
++\fB\-test\fR.bench regexp
++.IP
++run only benchmarks matching regexp
++.HP
++\fB\-test\fR.benchmem
++.IP
++print memory allocations for benchmarks
++.HP
++\fB\-test\fR.benchtime d
++.IP
++run each benchmark for duration d (default 1s)
++.HP
++\fB\-test\fR.blockprofile file
++.IP
++write a goroutine blocking profile to file
++.HP
++\fB\-test\fR.blockprofilerate rate
++.IP
++set blocking profile rate (see runtime.SetBlockProfileRate) (default 1)
++.HP
++\fB\-test\fR.count n
++.IP
++run tests and benchmarks n times (default 1)
++.HP
++\fB\-test\fR.coverprofile file
++.IP
++write a coverage profile to file
++.HP
++\fB\-test\fR.cpu list
++.IP
++comma\-separated list of cpu counts to run each test with
++.HP
++\fB\-test\fR.cpuprofile file
++.IP
++write a cpu profile to file
++.HP
++\fB\-test\fR.failfast
++.IP
++do not start new tests after the first test failure
++.HP
++\fB\-test\fR.list regexp
++.IP
++list tests, examples, and benchmarks matching regexp then exit
++.HP
++\fB\-test\fR.memprofile file
++.IP
++write a memory profile to file
++.HP
++\fB\-test\fR.memprofilerate rate
++.IP
++set memory profiling rate (see runtime.MemProfileRate)
++.HP
++\fB\-test\fR.mutexprofile string
++.IP
++write a mutex contention profile to the named file after execution
++.HP
++\fB\-test\fR.mutexprofilefraction int
++.IP
++if >= 0, calls runtime.SetMutexProfileFraction() (default 1)
++.HP
++\fB\-test\fR.outputdir dir
++.IP
++write profiles to dir
++.HP
++\fB\-test\fR.parallel n
++.IP
++run at most n tests in parallel (default 8)
++.HP
++\fB\-test\fR.run regexp
++.IP
++run only tests and examples matching regexp
++.HP
++\fB\-test\fR.short
++.IP
++run smaller test suite to save time
++.HP
++\fB\-test\fR.testlogfile file
++.IP
++write test action log to file (for use only by cmd/go)
++.HP
++\fB\-test\fR.timeout d
++.IP
++panic test binary after duration d (default 0, timeout disabled)
++.HP
++\fB\-test\fR.trace file
++.IP
++write an execution trace to file
++.HP
++\fB\-test\fR.v
++.IP
++verbose: print additional output
++.TP
++\fB\-v\fR
++prints current version and exits
++.SH "SEE ALSO"
++The full documentation for
++.B Grafana
++is available on-line at
++.BR http://docs.grafana.org/ .
+diff --git a/packaging/rpm/spec/README b/packaging/rpm/spec/README
+new file mode 100644
+index 000000000..f97c2a26b
+--- /dev/null
++++ b/packaging/rpm/spec/README
+@@ -0,0 +1,7 @@
++The make_webpack.sh script in this directory can be used to create
++a webpack tarball of all the nodejs dependencies needed to build a
++particular tagged version of grafana, along with the grafana tarball
++itself. After running the script, the two tarballs should be copied
++to your rpmbuild SOURCES. You can then run a native rpm spec build
++using grafana.spec.
++
+diff --git a/packaging/rpm/spec/grafana.spec b/packaging/rpm/spec/grafana.spec
+new file mode 100644
+index 000000000..85f0dd6aa
+--- /dev/null
++++ b/packaging/rpm/spec/grafana.spec
+@@ -0,0 +1,715 @@
++%global grafana_arches %{lua: go_arches = {}
++  for arch in rpm.expand("%{go_arches}"):gmatch("%S+") do
++    go_arches[arch] = 1
++  end
++  for arch in rpm.expand("%{nodejs_arches}"):gmatch("%S+") do
++    if go_arches[arch] then
++      print(arch .. " ")
++  end
++end}
++
++# Unbundle grafana vendor sources and instead use BuildRequires
++# only on platforms that have enough golang devel support.
++%if 0%{?rhel} == 0
++%global           unbundle_vendor_sources 1
++%endif
++
++
++Name:             grafana
++Version:          6.2.2
++Release:          1%{?dist}
++Summary:          Metrics dashboard and graph editor
++License:          ASL 2.0
++URL:              https://grafana.org
++
++# Source0 contains the tagged upstream sources
++Source0:          https://github.com/grafana/grafana/archive/v%{version}/%{name}-%{version}.tar.gz
++
++# Source1 contains the front-end javascript modules bundled into a webpack
++Source1:          grafana_webpack-%{version}.tar.gz
++
++# Source2 is the script to create the above webpack from grafana sources
++Source2:          make_grafana_webpack.sh
++
++# Patches for upstream
++Patch1:           001-login-oauth-use-oauth2-exchange.patch
++Patch2:           002-remove-jaeger-tracing.patch
++Patch3:           003-new-files.patch
++
++# Intersection of go_arches and nodejs_arches
++ExclusiveArch:    %{grafana_arches}
++
++# omit golang debugsource, see BZ995136 and related
++%global           _debugsource_template %{nil}
++
++%global           GRAFANA_USER %{name}
++%global           GRAFANA_GROUP %{name}
++%global           GRAFANA_HOME %{_datadir}/%{name}
++
++# grafana-server service daemon uses systemd
++%{?systemd_requires}
++Requires(pre):    shadow-utils
++
++BuildRequires:    systemd, golang, go-srpm-macros
++
++Recommends: grafana-cloudwatch = %{version}-%{release}
++Recommends: grafana-elasticsearch = %{version}-%{release}
++Recommends: grafana-azure-monitor = %{version}-%{release}
++Recommends: grafana-graphite = %{version}-%{release}
++Recommends: grafana-influxdb = %{version}-%{release}
++Recommends: grafana-loki = %{version}-%{release}
++Recommends: grafana-mssql = %{version}-%{release}
++Recommends: grafana-mysql = %{version}-%{release}
++Recommends: grafana-opentsdb = %{version}-%{release}
++Recommends: grafana-postgres = %{version}-%{release}
++Recommends: grafana-prometheus = %{version}-%{release}
++Recommends: grafana-stackdriver = %{version}-%{release}
++
++%if 0%{?unbundle_vendor_sources}
++# golang build deps. These allow us to unbundle vendor golang source.
++BuildRequires: golang(github.com/aws/aws-sdk-go)
++BuildRequires: golang(github.com/benbjohnson/clock)
++BuildRequires: golang(github.com/beorn7/perks/quantile)
++BuildRequires: golang(github.com/bmizerany/assert)
++BuildRequires: golang(github.com/bradfitz/gomemcache/memcache)
++BuildRequires: golang(github.com/BurntSushi/toml)
++BuildRequires: golang(github.com/codahale/hdrhistogram)
++BuildRequires: golang(github.com/codegangsta/cli)
++BuildRequires: golang(github.com/davecgh/go-spew/spew)
++BuildRequires: golang(github.com/denisenkom/go-mssqldb)
++BuildRequires: golang(github.com/facebookgo/inject)
++BuildRequires: golang(github.com/facebookgo/structtag)
++BuildRequires: golang(github.com/fatih/color)
++BuildRequires: golang(github.com/go-ini/ini)
++BuildRequires: golang(google.golang.org/appengine)
++BuildRequires: golang(golang.org/x/sys/unix)
++BuildRequires: golang(github.com/go-macaron/binding)
++BuildRequires: golang(github.com/go-macaron/gzip)
++BuildRequires: golang(github.com/go-macaron/inject)
++BuildRequires: golang(github.com/go-macaron/session)
++BuildRequires: golang(google.golang.org/genproto/googleapis/rpc/status)
++BuildRequires: golang(github.com/gobwas/glob)
++BuildRequires: golang(github.com/gobwas/glob/compiler)
++BuildRequires: golang(github.com/gobwas/glob/match)
++BuildRequires: golang(github.com/gobwas/glob/syntax)
++BuildRequires: golang(github.com/gobwas/glob/syntax/ast)
++BuildRequires: golang(github.com/gobwas/glob/syntax/lexer)
++BuildRequires: golang(github.com/gobwas/glob/util/runes)
++BuildRequires: golang(github.com/gobwas/glob/util/strings)
++BuildRequires: golang(github.com/gopherjs/gopherjs/js)
++BuildRequires: golang(github.com/gorilla/websocket)
++BuildRequires: golang(github.com/gosimple/slug)
++BuildRequires: golang(github.com/go-sql-driver/mysql)
++BuildRequires: golang(github.com/go-stack/stack)
++BuildRequires: golang(github.com/go-xorm/builder)
++BuildRequires: golang(github.com/go-xorm/core)
++BuildRequires: golang(github.com/go-xorm/xorm)
++BuildRequires: golang(google.golang.org/grpc)
++BuildRequires: golang(github.com/hashicorp/go-hclog)
++# need grpc_broker in go-plugin >= 1.0.0-1
++BuildRequires: golang(github.com/hashicorp/go-plugin)
++BuildRequires: golang(github.com/hashicorp/go-version)
++BuildRequires: golang(github.com/hashicorp/yamux)
++BuildRequires: golang(github.com/inconshreveable/log15)
++BuildRequires: golang(github.com/jmespath/go-jmespath)
++BuildRequires: golang(github.com/jtolds/gls)
++BuildRequires: golang(github.com/klauspost/compress/flate)
++BuildRequires: golang(github.com/klauspost/compress/gzip)
++BuildRequires: golang(github.com/klauspost/compress/snappy)
++BuildRequires: golang(github.com/klauspost/cpuid)
++BuildRequires: golang(github.com/klauspost/crc32)
++BuildRequires: golang(github.com/kr/pretty)
++BuildRequires: golang(github.com/kr/text)
++BuildRequires: golang(github.com/lib/pq)
++BuildRequires: golang(github.com/mattn/go-colorable)
++BuildRequires: golang(github.com/mattn/go-isatty)
++BuildRequires: golang(github.com/mattn/go-sqlite3)
++BuildRequires: golang(github.com/matttproud/golang_protobuf_extensions/pbutil)
++BuildRequires: golang(github.com/mitchellh/go-testing-interface)
++BuildRequires: golang(github.com/oklog/run)
++BuildRequires: golang(github.com/opentracing/opentracing-go)
++BuildRequires: golang(github.com/patrickmn/go-cache)
++BuildRequires: golang(github.com/pkg/errors)
++BuildRequires: golang(github.com/prometheus/client_golang/api)
++BuildRequires: golang(github.com/prometheus/client_golang/api/prometheus/v1)
++BuildRequires: golang(github.com/prometheus/client_model/go)
++BuildRequires: golang-github-prometheus-common-devel
++BuildRequires: golang(github.com/prometheus/common/expfmt)
++BuildRequires: golang(github.com/prometheus/common/model)
++BuildRequires: golang(github.com/prometheus/common/expfmt)
++BuildRequires: golang(github.com/prometheus/procfs)
++BuildRequires: golang(github.com/prometheus/procfs/internal/util)
++BuildRequires: golang(github.com/prometheus/procfs)
++BuildRequires: golang(github.com/prometheus/procfs/internal/util)
++BuildRequires: golang(github.com/prometheus/procfs/nfs)
++BuildRequires: golang(github.com/prometheus/procfs/xfs)
++BuildRequires: golang(github.com/rainycape/unidecode)
++BuildRequires: golang(github.com/sergi/go-diff/diffmatchpatch)
++BuildRequires: golang(github.com/smartystreets/assertions)
++BuildRequires: golang(github.com/smartystreets/goconvey/convey)
++BuildRequires: golang(github.com/smartystreets/goconvey/convey/gotest)
++BuildRequires: golang(github.com/smartystreets/goconvey/convey/reporting)
++BuildRequires: golang(github.com/teris-io/shortid)
++BuildRequires: golang(github.com/Unknwon/com)
++BuildRequires: golang(github.com/VividCortex/mysqlerr)
++BuildRequires: golang(github.com/yudai/gojsondiff)
++BuildRequires: golang(github.com/yudai/golcs)
++BuildRequires: golang(golang.org/x/crypto/pbkdf2)
++BuildRequires: golang(golang.org/x/crypto/ed25519)
++BuildRequires: golang(golang.org/x/crypto/md4)
++BuildRequires: golang(golang.org/x/net/context)
++BuildRequires: golang(golang.org/x/net/context/ctxhttp)
++BuildRequires: golang(golang.org/x/net/http2)
++BuildRequires: golang(golang.org/x/net/http2/hpack)
++BuildRequires: golang(golang.org/x/net/http/httpguts)
++BuildRequires: golang(golang.org/x/net/idna)
++BuildRequires: golang(golang.org/x/net/internal/timeseries)
++BuildRequires: golang(golang.org/x/net/trace)
++BuildRequires: golang(golang.org/x/text/collate)
++BuildRequires: golang(golang.org/x/text/collate/build)
++BuildRequires: golang(golang.org/x/text/internal/colltab)
++BuildRequires: golang(golang.org/x/text/internal/gen)
++BuildRequires: golang(golang.org/x/text/internal/tag)
++BuildRequires: golang(golang.org/x/text/internal/triegen)
++BuildRequires: golang(golang.org/x/text/internal/ucd)
++BuildRequires: golang(golang.org/x/oauth2)
++BuildRequires: golang(golang.org/x/oauth2/google)
++BuildRequires: golang(golang.org/x/oauth2/internal)
++BuildRequires: golang(golang.org/x/oauth2/jws)
++BuildRequires: golang(golang.org/x/oauth2/jwt)
++BuildRequires: golang(github.com/golang/protobuf/proto)
++BuildRequires: golang(github.com/golang/protobuf/ptypes)
++BuildRequires: golang(github.com/golang/protobuf/ptypes)
++BuildRequires: golang(github.com/golang/protobuf/ptypes/duration)
++BuildRequires: golang(github.com/golang/protobuf/ptypes/any)
++BuildRequires: golang(github.com/golang/protobuf/ptypes/timestamp)
++BuildRequires: golang(cloud.google.com/go/compute/metadata)
++BuildRequires: golang(gopkg.in/alexcesaro/quotedprintable.v3)
++BuildRequires: golang(gopkg.in/asn1-ber.v1)
++BuildRequires: golang(github.com/go-bufio/bufio)
++BuildRequires: golang(github.com/go-ini/ini)
++BuildRequires: golang(github.com/go-macaron/macaron)
++BuildRequires: golang(github.com/go-redis/redis)
++BuildRequires: golang(gopkg.in/square/go-jose.v2)
++BuildRequires: golang(gopkg.in/square/go-jose.v2/cipher)
++BuildRequires: golang(gopkg.in/square/go-jose.v2/json)
++BuildRequires: golang(github.com/go-yaml/yaml)
++BuildRequires: golang(golang.org/x/sync/errgroup)
++BuildRequires: golang(gopkg.in/ldap.v3)
++BuildRequires: golang(gopkg.in/mail.v2)
++%endif
++
++# Declare all nodejs modules bundled in the webpack - this is for security
++# purposes so if nodejs-foo ever needs an update, affected packages can be
++# easily identified. This is generated from package-lock.json once the webpack
++# has been built with make_webpack.sh.
++Provides: bundled(nodejs-abbrev) = 1.1.1
++Provides: bundled(nodejs-ansi-regex) = 2.1.1
++Provides: bundled(nodejs-ansi-styles) = 2.2.1
++Provides: bundled(nodejs-argparse) = 1.0.10
++Provides: bundled(nodejs-array-find-index) = 1.0.2
++Provides: bundled(nodejs-async) = 1.5.2
++Provides: bundled(nodejs-balanced-match) = 1.0.0
++Provides: bundled(nodejs-brace-expansion) = 1.1.11
++Provides: bundled(nodejs-builtin-modules) = 1.1.1
++Provides: bundled(nodejs-camelcase) = 2.1.1
++Provides: bundled(nodejs-camelcase-keys) = 2.1.0
++Provides: bundled(nodejs-chalk) = 1.1.3
++Provides: bundled(nodejs-coffee-script) = 1.10.0
++Provides: bundled(nodejs-colors) = 1.1.2
++Provides: bundled(nodejs-concat-map) = 0.0.1
++Provides: bundled(nodejs-currently-unhandled) = 0.4.1
++Provides: bundled(nodejs-dateformat) = 1.0.12
++Provides: bundled(nodejs-decamelize) = 1.2.0
++Provides: bundled(nodejs-error-ex) = 1.3.2
++Provides: bundled(nodejs-escape-string-regexp) = 1.0.5
++Provides: bundled(nodejs-esprima) = 2.7.3
++Provides: bundled(nodejs-eventemitter2) = 0.4.14
++Provides: bundled(nodejs-exit) = 0.1.2
++Provides: bundled(nodejs-find-up) = 1.1.2
++Provides: bundled(nodejs-findup-sync) = 0.3.0
++Provides: bundled(nodejs-fs.realpath) = 1.0.0
++Provides: bundled(nodejs-get-stdin) = 4.0.1
++Provides: bundled(nodejs-getobject) = 0.1.0
++Provides: bundled(nodejs-glob) = 7.0.6
++Provides: bundled(nodejs-graceful-fs) = 4.1.15
++Provides: bundled(nodejs-grunt) = 1.0.1
++Provides: bundled(nodejs-grunt-cli) = 1.2.0
++Provides: bundled(nodejs-grunt-known-options) = 1.1.1
++Provides: bundled(nodejs-grunt-legacy-log) = 1.0.2
++Provides: bundled(nodejs-lodash) = 4.17.11
++Provides: bundled(nodejs-grunt-legacy-log-utils) = 1.0.0
++Provides: bundled(nodejs-grunt-legacy-util) = 1.0.0
++Provides: bundled(nodejs-has-ansi) = 2.0.0
++Provides: bundled(nodejs-hooker) = 0.2.3
++Provides: bundled(nodejs-hosted-git-info) = 2.7.1
++Provides: bundled(nodejs-iconv-lite) = 0.4.24
++Provides: bundled(nodejs-indent-string) = 2.1.0
++Provides: bundled(nodejs-inflight) = 1.0.6
++Provides: bundled(nodejs-inherits) = 2.0.3
++Provides: bundled(nodejs-is-arrayish) = 0.2.1
++Provides: bundled(nodejs-is-builtin-module) = 1.0.0
++Provides: bundled(nodejs-is-finite) = 1.0.2
++Provides: bundled(nodejs-is-utf8) = 0.2.1
++Provides: bundled(nodejs-isexe) = 2.0.0
++Provides: bundled(nodejs-js-yaml) = 3.5.5
++Provides: bundled(nodejs-load-json-file) = 1.1.0
++Provides: bundled(nodejs-loud-rejection) = 1.6.0
++Provides: bundled(nodejs-map-obj) = 1.0.1
++Provides: bundled(nodejs-meow) = 3.7.0
++Provides: bundled(nodejs-minimatch) = 3.0.4
++Provides: bundled(nodejs-minimist) = 1.2.0
++Provides: bundled(nodejs-nopt) = 3.0.6
++Provides: bundled(nodejs-normalize-package-data) = 2.4.2
++Provides: bundled(nodejs-number-is-nan) = 1.0.1
++Provides: bundled(nodejs-object-assign) = 4.1.1
++Provides: bundled(nodejs-once) = 1.4.0
++Provides: bundled(nodejs-parse-json) = 2.2.0
++Provides: bundled(nodejs-path-exists) = 2.1.0
++Provides: bundled(nodejs-path-is-absolute) = 1.0.1
++Provides: bundled(nodejs-path-type) = 1.1.0
++Provides: bundled(nodejs-pify) = 2.3.0
++Provides: bundled(nodejs-pinkie) = 2.0.4
++Provides: bundled(nodejs-pinkie-promise) = 2.0.1
++Provides: bundled(nodejs-read-pkg) = 1.1.0
++Provides: bundled(nodejs-read-pkg-up) = 1.0.1
++Provides: bundled(nodejs-redent) = 1.0.0
++Provides: bundled(nodejs-repeating) = 2.0.1
++Provides: bundled(nodejs-resolve) = 1.1.7
++Provides: bundled(nodejs-rimraf) = 2.2.8
++Provides: bundled(nodejs-safer-buffer) = 2.1.2
++Provides: bundled(nodejs-semver) = 5.6.0
++Provides: bundled(nodejs-signal-exit) = 3.0.2
++Provides: bundled(nodejs-spdx-correct) = 3.1.0
++Provides: bundled(nodejs-spdx-exceptions) = 2.2.0
++Provides: bundled(nodejs-spdx-expression-parse) = 3.0.0
++Provides: bundled(nodejs-spdx-license-ids) = 3.0.3
++Provides: bundled(nodejs-sprintf-js) = 1.0.3
++Provides: bundled(nodejs-strip-ansi) = 3.0.1
++Provides: bundled(nodejs-strip-bom) = 2.0.0
++Provides: bundled(nodejs-strip-indent) = 1.0.1
++Provides: bundled(nodejs-supports-color) = 2.0.0
++Provides: bundled(nodejs-trim-newlines) = 1.0.0
++Provides: bundled(nodejs-underscore.string) = 3.2.3
++Provides: bundled(nodejs-validate-npm-package-license) = 3.0.4
++Provides: bundled(nodejs-which) = 1.2.14
++Provides: bundled(nodejs-wrappy) = 1.0.2
++Provides: bundled(nodejs-yarn) = 1.13.0
++
++
++%description
++Grafana is an open source, feature rich metrics dashboard and graph editor for
++Graphite, InfluxDB & OpenTSDB.
++
++
++%package cloudwatch
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana cloudwatch datasource
++
++%description cloudwatch
++The Grafana cloudwatch datasource.
++
++%package elasticsearch
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana elasticsearch datasource
++
++%description elasticsearch
++The Grafana elasticsearch datasource.
++
++%package azure-monitor
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana azure-monitor datasource
++
++%description azure-monitor
++The Grafana azure-monitor datasource.
++
++%package graphite
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana graphite datasource
++
++%description graphite
++The Grafana graphite datasource.
++
++%package influxdb
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana influxdb datasource
++
++%description influxdb
++The Grafana influxdb datasource.
++
++%package loki
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana loki datasource
++
++%description loki
++The Grafana loki datasource.
++
++%package mssql
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana mssql datasource
++
++%description mssql
++The Grafana mssql datasource.
++
++%package mysql
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana mysql datasource
++
++%description mysql
++The Grafana mysql datasource.
++
++%package opentsdb
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana opentsdb datasource
++
++%description opentsdb
++The Grafana opentsdb datasource.
++
++%package postgres
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana postgres datasource
++
++%description postgres
++The Grafana postgres datasource.
++
++%package prometheus
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana prometheus datasource
++
++%description prometheus
++The Grafana prometheus datasource.
++
++%package stackdriver
++Requires: %{name} = %{version}-%{release}
++Summary: Grafana stackdriver datasource
++
++%description stackdriver
++The Grafana stackdriver datasource.
++
++
++%prep
++%setup -q -T -D -b 0
++%setup -q -T -D -b 1
++%patch1 -p1
++%patch2 -p1
++%patch3 -p1
++
++# Set up build subdirs and links
++mkdir -p %{_builddir}/src/github.com/grafana
++ln -sf %{_builddir}/%{name}-%{version} \
++    %{_builddir}/src/github.com/grafana/grafana
++
++# remove some (apparent) development files, for rpmlint
++rm -f public/sass/.sass-lint.yml public/test/.jshintrc
++
++%if 0%{?unbundle_vendor_sources}
++# Unbundle all grafana vendor sources, as per BuildRequires above.
++# An exception is grafana-plugin-model, which is part of grafana.
++# Another exception is xerrors, which is a transition package
++# for the new Go 1.13 error values, see https://github.com/golang/xerrors
++cp --parents -a vendor/github.com/grafana vendor/golang.org/x/xerrors \
++    vendor/github.com/robfig/cron %{_builddir}
++rm -r vendor # remove all vendor sources
++mv %{_builddir}/vendor vendor # put back what we're keeping
++%endif
++
++
++%build
++# Build the server-side binaries: grafana-server and grafana-cli
++%if 0%{?gobuild}
++# use modern go macros such as in recent Fedora
++export GOPATH=%{_builddir}:%{gopath}
++%gobuild -o grafana-cli ./pkg/cmd/grafana-cli
++%gobuild -o grafana-server ./pkg/cmd/grafana-server
++%else
++cd %{_builddir}/src/github.com/grafana/grafana
++export GOPATH=%{_builddir}:%{gopath}
++go run build.go build
++%endif
++
++
++%install
++# Fix up arch bin directories
++[ ! -d bin/x86_64 ] && ln -sf linux-amd64 bin/x86_64
++[ ! -d bin/i386 ] && ln -sf linux-386 bin/i386
++[ ! -d bin/ppc64le ] && ln -sf linux-ppc64le bin/ppc64le
++[ ! -d bin/s390x ] && ln -sf linux-s390x bin/s390x
++[ ! -d bin/arm ] && ln -sf linux-arm bin/arm
++[ ! -d bin/arm64 ] && ln -sf linux-arm64 bin/aarch64
++[ ! -d bin/aarch64 ] && ln -sf linux-aarch64 bin/aarch64
++
++# binaries
++install -d %{buildroot}%{_sbindir}
++install -p -m 755 bin/%{_arch}/%{name}-server %{buildroot}%{_sbindir}
++install -p -m 755 bin/%{_arch}/%{name}-cli %{buildroot}%{_sbindir}
++
++# other shared files, public html, webpack
++install -d %{buildroot}%{_datadir}/%{name}
++cp -a conf public %{buildroot}%{_datadir}/%{name}
++
++# man pages
++install -d %{buildroot}%{_mandir}/man1
++install -p -m 644 docs/man/man1/* %{buildroot}%{_mandir}/man1
++
++# config dirs
++install -d %{buildroot}%{_sysconfdir}/%{name}
++install -d %{buildroot}%{_sysconfdir}/sysconfig
++
++# config defaults
++install -p -m 644 conf/distro-defaults.ini \
++    %{buildroot}%{_sysconfdir}/%{name}/grafana.ini
++install -p -m 644 conf/distro-defaults.ini \
++    %{buildroot}%{_datadir}/%{name}/conf/defaults.ini
++install -p -m 644 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{name}/ldap.toml
++install -p -m 644 packaging/rpm/sysconfig/grafana-server \
++    %{buildroot}%{_sysconfdir}/sysconfig/grafana-server
++
++# config database directory and plugins
++install -d %{buildroot}%{_sharedstatedir}/%{name}
++install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}
++install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}/plugins
++
++# log directory
++install -d %{buildroot}%{_localstatedir}/log/%{name}
++
++# systemd service files
++install -d %{buildroot}%{_unitdir} # only needed for manual rpmbuilds
++install -p -m 644 packaging/rpm/systemd/grafana-server.service \
++    %{buildroot}%{_unitdir}
++
++# daemon run pid file config for using tmpfs
++install -d %{buildroot}%{_tmpfilesdir}
++echo "d %{_rundir}/%{name} 0755 %{GRAFANA_USER} %{GRAFANA_GROUP} -" \
++    > %{buildroot}%{_tmpfilesdir}/%{name}.conf
++
++%pre
++getent group %{GRAFANA_GROUP} >/dev/null || groupadd -r %{GRAFANA_GROUP}
++getent passwd %{GRAFANA_USER} >/dev/null || \
++    useradd -r -g %{GRAFANA_GROUP} -d %{GRAFANA_HOME} -s /sbin/nologin \
++    -c "%{GRAFANA_USER} user account" %{GRAFANA_USER}
++exit 0
++
++%preun
++%systemd_preun grafana-server.service
++
++%post
++%systemd_post grafana-server.service
++
++%postun
++%systemd_postun_with_restart grafana-server.service
++
++
++%check
++cd %{_builddir}/src/github.com/grafana/grafana
++export GOPATH=%{_builddir}:%{gopath}
++# remove tests currently failing
++rm -f pkg/services/provisioning/dashboards/file_reader_linux_test.go
++rm -f pkg/services/provisioning/dashboards/file_reader_test.go
++rm -f pkg/services/sqlstore/alert_test.go
++go test ./pkg/...
++
++
++%files
++# binaries
++%{_sbindir}/%{name}-server
++%{_sbindir}/%{name}-cli
++
++# config files
++%dir %{_sysconfdir}/%{name}
++%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/grafana.ini
++%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/ldap.toml
++%config(noreplace) %{_sysconfdir}/sysconfig/grafana-server
++
++# Grafana configuration to dynamically create /run/grafana/grafana.pid on tmpfs
++%{_tmpfilesdir}/%{name}.conf
++
++# config database directory and plugins (actual db files are created by grafana-server)
++%attr(-, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_sharedstatedir}/%{name}
++%attr(-, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_sharedstatedir}/%{name}/plugins
++
++# shared directory and all files therein, except some datasources
++%{_datadir}/%{name}/public
++
++# built-in datasources that are sub-packaged
++%global dsdir %{_datadir}/%{name}/public/app/plugins/datasource
++%exclude %{dsdir}/cloudwatch 
++%exclude %{dsdir}/elasticsearch 
++%exclude %{dsdir}/graphite
++%exclude %{dsdir}/grafana-azure-monitor-datasource
++%exclude %{dsdir}/influxdb
++%exclude %{dsdir}/loki
++%exclude %{dsdir}/mssql
++%exclude %{dsdir}/mysql
++%exclude %{dsdir}/opentsdb
++%exclude %{dsdir}/postgres
++%exclude %{dsdir}/prometheus
++%exclude %{dsdir}/stackdriver
++
++%dir %{_datadir}/%{name}/conf
++%attr(-, root, %{GRAFANA_GROUP}) %{_datadir}/%{name}/conf/*
++
++# systemd service file
++%{_unitdir}/grafana-server.service
++
++# log directory - grafana.log is created by grafana-server, and it does it's own log rotation
++%attr(0755, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_localstatedir}/log/%{name}
++
++# man pages for grafana binaries
++%{_mandir}/man1/%{name}-server.1*
++%{_mandir}/man1/%{name}-cli.1*
++
++# other docs and license
++%license LICENSE
++%doc CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md NOTICE.md
++%doc PLUGIN_DEV.md README.md ROADMAP.md UPGRADING_DEPENDENCIES.md
++
++#
++# datasources split out into subpackages
++#
++%files cloudwatch
++%{_datadir}/%{name}/public/app/plugins/datasource/cloudwatch
++
++%files elasticsearch
++%{_datadir}/%{name}/public/app/plugins/datasource/elasticsearch
++
++%files azure-monitor
++%{_datadir}/%{name}/public/app/plugins/datasource/grafana-azure-monitor-datasource
++
++%files graphite
++%{_datadir}/%{name}/public/app/plugins/datasource/graphite
++
++%files influxdb
++%{_datadir}/%{name}/public/app/plugins/datasource/influxdb
++
++%files loki
++%{_datadir}/%{name}/public/app/plugins/datasource/loki
++
++%files mssql
++%{_datadir}/%{name}/public/app/plugins/datasource/mssql
++
++%files mysql
++%{_datadir}/%{name}/public/app/plugins/datasource/mysql
++
++%files opentsdb
++%{_datadir}/%{name}/public/app/plugins/datasource/opentsdb
++
++%files postgres
++%{_datadir}/%{name}/public/app/plugins/datasource/postgres
++
++%files prometheus
++%{_datadir}/%{name}/public/app/plugins/datasource/prometheus
++
++%files stackdriver
++%{_datadir}/%{name}/public/app/plugins/datasource/stackdriver
++
++
++%changelog
++* Fri Jun 07 2019 Mark Goodwin <mgoodwin@redhat.com> 6.2.2-1
++- split out some datasource plugins to sub-packages
++- update to latest upstream community sources, see CHANGELOG
++
++* Wed Jun 05 2019 Mark Goodwin <mgoodwin@redhat.com> 6.2.1-1
++- update to latest upstream community sources, see CHANGELOG
++
++* Fri May 24 2019 Mark Goodwin <mgoodwin@redhat.com> 6.2.0-1
++- update to latest upstream community sources
++- drop a couple of patches
++
++* Wed May 08 2019 Mark Goodwin <mgoodwin@redhat.com> 6.1.6-2
++- add conditional unbundle_vendor_sources macro
++
++* Tue Apr 30 2019 Mark Goodwin <mgoodwin@redhat.com> 6.1.6-1
++- update to latest upstream stable release 6.1.6, see CHANGELOG
++- includes jQuery 3.4.0 security update
++
++* Wed Apr 24 2019 Mark Goodwin <mgoodwin@redhat.com> 6.1.4-1
++- update to latest upstream stable release 6.1.4, see CHANGELOG
++- use gobuild and gochecks macros, eliminate arch symlinks
++- re-enable grafana-debugsource package
++- fix GRAFANA_GROUP typo
++- fix more modes for brp-mangle-shebangs
++- vendor source unbundling now done in prep after patches
++- remove all rhel and fedora conditional guff
++
++* Tue Apr 16 2019 Mark Goodwin <mgoodwin@redhat.com> 6.1.3-1
++- update to latest upstream stable release 6.1.3, see CHANGELOG
++- unbundle all vendor sources, replace with BuildRequires, see
++  the long list of blocker BZs linked to BZ#1670656
++- BuildRequires go-plugin >= v1.0.0 for grpc_broker (thanks eclipseo)
++- tweak make_webpack to no longer use grunt, switch to prod build
++- add ExclusiveArch lua script (thanks quantum.analyst)
++- move db directory and plugins to /var/lib/grafana
++- split out into 6 patches, ready for upstream PRs
++- add check to run go tests for gating checks
++
++* Thu Apr 04 2019 Mark Goodwin <mgoodwin@redhat.com> 6.1.0-1
++- update to latest upstream stable release 6.1.0, see CHANGELOG
++
++* Thu Mar 21 2019 Mark Goodwin <mgoodwin@redhat.com> 6.0.2-1
++- bump to latest upstream stable release 6.0.2-1
++- unbundle almost all remaining vendor code, see linked blockers in BZ#1670656
++
++* Fri Mar 15 2019 Mark Goodwin <mgoodwin@redhat.com> 6.0.1-3
++- bump to latest upstream stable release 6.0.1-1
++
++* Thu Mar 14 2019 Mark Goodwin <mgoodwin@redhat.com> 6.0.1-2
++- unbundle and add BuildRequires for golang-github-rainycape-unidecode-devel
++
++* Thu Mar 07 2019 Mark Goodwin <mgoodwin@redhat.com> 6.0.1-1
++- update to v6.0.1 upstream sources, tweak distro config, re-do patch
++- simplify make_webpack.sh script (Elliott Sales de Andrade)
++- vendor/github.com/go-ldap is now gone, so don't unbundle it
++
++* Thu Mar 07 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-11
++- tweak after latest feedback, bump to 5.4.3-11 (BZ 1670656)
++- build debuginfo package again
++- unbundle BuildRequires for golang-github-hashicorp-version-devel
++- remove some unneeded development files
++- remove macros from changelog and other rpmlint tweaks
++
++* Fri Feb 22 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-10
++- tweak spec for available and unavailable (bundled) golang packages
++
++* Wed Feb 20 2019 Xavier Bachelot <xavier@bachelot.org> 5.4.3-9
++- Remove extraneous slash (cosmetic)
++- Create directories just before moving stuff in them
++- Truncate long lines
++- Group all golang stuff
++- Simplify BuildRequires/bundled Provides
++- Sort BuildRequires/bundled Provides
++- Fix bundled go packages Provides
++
++* Fri Feb 15 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-8
++- add BuildRequires (and unbundle) vendor sources available in Fedora
++- declare Provides for remaining (bundled) vendor go sources
++- do not attempt to unbundle anything on RHEL < 7 or Fedora < 28
++
++* Thu Feb 07 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-7
++- further refinement for spec doc section from Xavier Bachelot
++- disable debug_package to avoid empty debugsourcefiles.list
++
++* Wed Feb 06 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-6
++- further refinement following review by Xavier Bachelot
++
++* Tue Feb 05 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-5
++- further refinement following review by Xavier Bachelot
++
++* Fri Feb 01 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-4
++- further spec updates after packaging review
++- reworked post-install scriplets
++
++* Thu Jan 31 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-3
++- tweak FHS patch, update spec after packaging review
++
++* Wed Jan 30 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.3-2
++- add patch to be standard FHS compliant, remove phantomjs
++- update to v5.4.3 upstream community sources
++
++* Wed Jan 09 2019 Mark Goodwin <mgoodwin@redhat.com> 5.4.2-1
++- update to v5.4.2 upstream community sources
++
++* Thu Oct 18 2018 Mark Goodwin <mgoodwin@redhat.com> 5.3.1-1
++- update to v5.3.1 upstream community sources
++
++* Tue Oct 02 2018 Mark Goodwin <mgoodwin@redhat.com> 5.2.5-1
++- native RPM spec build with current tagged v5.2.5 sources
+diff --git a/packaging/rpm/spec/make_grafana_webpack.sh b/packaging/rpm/spec/make_grafana_webpack.sh
+new file mode 100755
+index 000000000..47a8025ff
+--- /dev/null
++++ b/packaging/rpm/spec/make_grafana_webpack.sh
+@@ -0,0 +1,61 @@
++#! /bin/bash
++#
++# Copyright (c) 2019 Red Hat.
++#
++# This program is free software; you can redistribute it and/or modify it
++# under the terms of the GNU General Public License as published by the
++# Free Software Foundation; either version 2 of the License, or (at your
++# option) any later version.
++#
++# This program is distributed in the hope that it will be useful, but
++# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++# for more details.
++#
++
++[ $# -ne 1 ] && echo "Usage: $0 version" && exit 1
++
++# grafana version (must be tagged on github.com/grafana/grafana as "v$VER")
++VER=$1
++BUILDDIR=`mktemp -d buildXXXXXX`
++
++[ ! -f /usr/bin/npm ] && echo Error, please install \"npm\" package && exit 1
++
++# get src tree and set cwd
++echo Fetching pristine upstream git tagged branch for grafana version v$VER ...
++git clone https://github.com/grafana/grafana grafana-$VER
++cd grafana-$VER
++git checkout -b v$VER v$VER
++
++# exclude the phantomjs-prebuilt binary module from the webpack
++sed -i '/phantomjs-prebuilt/d' package.json
++
++# nuke grunt task for copying phantomjs
++rm -f scripts/grunt/options/phantomjs.js
++sed -i '/phantomjs/d' scripts/grunt/*.js
++
++# populate node_modules using package.json
++echo Running yarn to populate local node_modules ....
++npm install yarn
++node_modules/yarn/bin/yarn --non-interactive --no-progress --ignore-engines install --pure-lockfile > yarn.out 2>&1
++node_modules/yarn/bin/yarn --non-interactive -W add webpack-cli
++
++# build the webpack
++echo;echo Building production webpack ....
++node_modules/webpack/bin/webpack.js --display errors-only --mode production --config scripts/webpack/webpack.prod.js
++
++cd ..
++
++# webpack tarball. Includes public/views because index.html references the webpack
++tar czf grafana_webpack-$VER.tar.gz grafana-$VER/public/build grafana-$VER/public/views
++
++# source tarball (if needed)
++if [ ! -f grafana-$VER.tar.gz ]; then
++  wget --quiet -O grafana-$VER.tar.gz https://github.com/grafana/grafana/archive/v$VER/grafana-$VER.tar.gz
++fi
++
++# done
++echo Both grafana-$VER.tar.gz and grafana_webpack-$VER.tar.gz
++echo should now be copied to your \$HOME/rpmbuild/SOURCES
++
++exit 0
