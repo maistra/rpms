@@ -1,3 +1,6 @@
+# Build with debug info rpm
+%global with_debug 0
+
 Name:             grafana
 Version:          6.2.2
 Release:          1%{?dist}
@@ -186,8 +189,17 @@ go run build.go build
 
 # binaries
 install -d %{buildroot}%{_sbindir}
-install -p -m 755 bin/%{_arch}/%{name}-server %{buildroot}%{_sbindir}
-install -p -m 755 bin/%{_arch}/%{name}-cli %{buildroot}%{_sbindir}
+
+%if 0%{?with_debug} > 0
+  install -p -m 755 bin/%{_arch}/%{name}-server %{buildroot}%{_sbindir}
+  install -p -m 755 bin/%{_arch}/%{name}-cli %{buildroot}%{_sbindir}
+%else
+  mkdir stripped
+  strip -o stripped/bin/%{name}-server -s bin/%{_arch}/%{name}-server
+  strip -o stripped/bin/%{name}-cli -s bin/%{_arch}/%{name}-cli
+  install -p -m 755 stripped/%{name}-server %{buildroot}%{_sbindir}
+  install -p -m 755 stripped/%{name}-cli %{buildroot}%{_sbindir}
+%endif
 
 # other shared files, public html, webpack
 install -d %{buildroot}%{_datadir}/%{name}
