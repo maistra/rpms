@@ -97,5 +97,5 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
-* Fri Jun 14 2019 Marko Luksa <mluksa@redhat.com> - 0.1.0
+* Fri Jun 14 2019 Marko Luksa <mluksa@redhat.com> - 0.12.0
 - First package
