@@ -1,0 +1,13 @@
+diff --git a/pkg/api/login_oauth.go b/pkg/api/login_oauth.go
+index a3599bc7a..0c6579847 100644
+--- a/pkg/api/login_oauth.go
++++ b/pkg/api/login_oauth.go
+@@ -125,7 +125,7 @@ func (hs *HTTPServer) OAuthLogin(ctx *m.ReqContext) {
+ 	oauthCtx := context.WithValue(context.Background(), oauth2.HTTPClient, oauthClient)
+ 
+ 	// get token from provider
+-	token, err := connect.Exchange(oauthCtx, code)
++	token, err := connect.Exchange(oauthCtx, code, oauth2.AccessTypeOnline)
+ 	if err != nil {
+ 		ctx.Handle(500, "login.OAuthLogin(NewTransportWithCode)", err)
+ 		return

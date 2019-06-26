@@ -1,4 +1,7 @@
 .build*
 /istio-*.tar.gz
 /vendor-istio-*.tar.gz
+/grafana-*.tar.gz
+/grafana_webpack-*.tar.gz
+
 
