@@ -46,7 +46,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/opt/cni/bin
 cd istio-cni/src/%{provider_prefix}
 
-install -p -m 755 tools/packaging/common/istio-iptables.sh %{buildroot}/opt/cni/bin
+install -p -m 755 tools/deb/istio-iptables.sh %{buildroot}/opt/cni/bin
 install -p -m 755 deployments/kubernetes/install/scripts/install-cni.sh %{buildroot}
 install -p -m 755 deployments/kubernetes/install/scripts/filter.jq %{buildroot}
 install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default %{buildroot}/istio-cni.conf.tmp
