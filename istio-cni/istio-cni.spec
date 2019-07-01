@@ -39,7 +39,7 @@ cd istio-cni
 export GOPATH=$(pwd):%{gopath}
 
 pushd src/%{provider_prefix}
-make build ISTIO_OUT=bin ISTIO_CNI_RELPATH=github.com/maistra/istio-cni
+make build ISTIO_OUT=bin ISTIO_CNI_RELPATH=github.com/maistra/istio-cni TAG=dummy
 
 %install
 rm -rf %{buildroot}
