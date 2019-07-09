@@ -9,7 +9,7 @@ License:          ASL 2.0
 URL:              https://grafana.org
 
 # Source0 contains the tagged upstream sources
-Source0:          https://github.com/grafana/grafana/archive/v%{version}/%{name}-%{version}.tar.gz
+Source0:          https://github.com/grafana/grafana/archive/v%{version}.tar.gz
 
 # Source1 contains the front-end javascript modules bundled into a webpack
 Source1:          grafana_webpack-%{version}.tar.gz
@@ -189,16 +189,47 @@ go run build.go build
 
 # binaries
 install -d %{buildroot}%{_sbindir}
-
+binaries=(%{name}-server %{name}-cli)
 %if 0%{?with_debug} > 0
-  install -p -m 755 bin/%{_arch}/%{name}-server %{buildroot}%{_sbindir}
-  install -p -m 755 bin/%{_arch}/%{name}-cli %{buildroot}%{_sbindir}
+  for i in "${binaries[@]}"; do
+        install -p -m 755 bin/%{_arch}/$i %{buildroot}%{_sbindir}
+   done
 %else
-  mkdir stripped
-  strip -o stripped/bin/%{name}-server -s bin/%{_arch}/%{name}-server
-  strip -o stripped/bin/%{name}-cli -s bin/%{_arch}/%{name}-cli
-  install -p -m 755 stripped/%{name}-server %{buildroot}%{_sbindir}
-  install -p -m 755 stripped/%{name}-cli %{buildroot}%{_sbindir}
+    mkdir stripped
+    touch keep_symbols
+    for i in "${binaries[@]}"; do
+       echo "Dumping dynamic symbols for ${i}"
+        nm -D bin/%{_arch}/$i --format=posix --defined-only \
+  | awk '{ print $1 }' | sort > dynsyms
+
+        echo "Dumping function symbols for ${i}"
+       nm bin/%{_arch}/$i --format=posix --defined-only \
+  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+  | sort > funcsyms
+
+        echo "Grabbing other function symbols from ${i}"
+        comm -13 dynsyms funcsyms > keep_symbols
+
+        COMPRESSED_NAME="${i}_debuginfo"
+        if [ -s keep_symbols ]; then
+          echo "remove unnecessary debug info from ${i}"
+          objcopy -S --remove-section .gdb_index --remove-section .comment \
+  --keep-symbols=keep_symbols bin/%{_arch}/$i "${COMPRESSED_NAME}"
+        fi
+
+        echo "stripping: ${i}"
+        strip -o "stripped/${i}" -s bin/%{_arch}/$i
+
+        if [ -f ${COMPRESSED_NAME} ]; then
+          echo "compress debugdata for ${i} into ${COMPRESSED_NAME}.xz"
+          xz "${COMPRESSED_NAME}"
+
+          echo "inject compressed data into .gnu_debugdata for ${i}"
+          objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
+        fi
+
+        install -p -m 755 "stripped/${i}" %{buildroot}%{_sbindir}
+    done
 %endif
 
 # other shared files, public html, webpack
@@ -246,16 +277,6 @@ getent passwd %{GRAFANA_USER} >/dev/null || \
     useradd -r -g %{GRAFANA_GROUP} -d %{GRAFANA_HOME} -s /sbin/nologin \
     -c "%{GRAFANA_USER} user account" %{GRAFANA_USER}
 exit 0
-
-%check
-cd %{_builddir}/src/github.com/grafana/grafana
-export GOPATH=%{_builddir}:%{gopath}
-# remove tests currently failing
-rm -f pkg/services/provisioning/dashboards/file_reader_linux_test.go
-rm -f pkg/services/provisioning/dashboards/file_reader_test.go
-rm -f pkg/services/sqlstore/alert_test.go
-go test ./pkg/...
-
 
 %files
 # binaries
