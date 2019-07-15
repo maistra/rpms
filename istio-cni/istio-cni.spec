@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit a17d4c7a03f1e09a4807c68acff2de5ef759c789
+%global git_commit 7a02a2e4fd34ea003ec69c8db184d109423bb85a
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -14,7 +14,7 @@
 
 Name:           istio-cni
 Version:        0.12.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -97,6 +97,9 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-4
+- Update to Maistra 0.12 release
+
 * Tue Jul 2 2019 Marko Luksa <mluksa@redhat.com> - 0.12.0-3
 - Include proper fix for MAISTRA-556
 

@@ -3,7 +3,7 @@
 
 Name:             grafana
 Version:          6.2.2
-Release:          1%{?dist}
+Release:          2%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
@@ -337,6 +337,9 @@ exit 0
 %{_datadir}/%{name}/public/app/plugins/datasource/prometheus
 
 %changelog
+* Mon Jul 19 2019 Brian Avery <bavery@redhat.com> - 6.2.2-2
+- Maistra 0.12.0 release
+
 * Fri Jun 21 2019 Dmitri Dolguikh <ddolguik@redhat.com> 6.2.2-1
 - Created grafana package to be used with Mesh/Maistra.
   Based on work by mgoodwin@redhat.com & others
