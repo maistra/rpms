@@ -1,8 +1,10 @@
 # Build with debug info rpm
 %global with_debug 0
 
+%global version 6.2.2
+
 Name:             grafana
-Version:          6.2.2
+Version:          %{version}
 Release:          2%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
@@ -13,9 +15,6 @@ Source0:          https://github.com/grafana/grafana/archive/v%{version}.tar.gz
 
 # Source1 contains the front-end javascript modules bundled into a webpack
 Source1:          grafana_webpack-%{version}.tar.gz
-
-# Source2 is the script to create the above webpack from grafana sources
-Source2:          make_grafana_webpack.sh
 
 # Patches for upstream
 Patch1:           001-login-oauth-use-oauth2-exchange.patch
@@ -149,8 +148,8 @@ Summary: Grafana prometheus datasource
 The Grafana prometheus datasource.
 
 %prep
-%setup -q -T -D -b 0
-%setup -q -T -D -b 1
+%setup -q -T -D -b 0 #extract SOURCE0 in $RPM_BUILD_ROOT
+%setup -q -T -D -b 1 #extract SOURCE1 in $RPM_BUILD_ROOT
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
@@ -337,7 +336,7 @@ exit 0
 %{_datadir}/%{name}/public/app/plugins/datasource/prometheus
 
 %changelog
-* Mon Jul 19 2019 Brian Avery <bavery@redhat.com> - 6.2.2-2
+* Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 6.2.2-2
 - Maistra 0.12.0 release
 
 * Fri Jun 21 2019 Dmitri Dolguikh <ddolguik@redhat.com> 6.2.2-1
