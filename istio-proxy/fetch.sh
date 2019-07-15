@@ -1,13 +1,15 @@
 set -x
 set -e
 
+PROXY_DIR=${PROXY_DIR:-istio-proxy}
 function check_envs() {
   if [ -z "$FETCH_DIR" ]; then
     echo "FETCH_DIR required. Please set"
     exit 1
   fi
 
-  CACHE_DIR=${FETCH_DIR}/istio-proxy/bazel
+	PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
 function set_default_envs() {
@@ -69,12 +71,12 @@ check_dependencies
 
 function preprocess_envs() {
   if [ "${CLEAN_FETCH}" == "true" ]; then
-    rm -rf ${FETCH_DIR}/istio-proxy
+    rm -rf ${PROXY_FETCH_DIR}
   fi
 }
 
 function prune() {
-  pushd ${FETCH_DIR}/istio-proxy
+  pushd ${PROXY_FETCH_DIR}
     #prune git
     if [ ! "${CREATE_ARTIFACTS}" == "true" ]; then
       find . -name ".git*" | xargs -r rm -rf
@@ -124,7 +126,7 @@ function remove_build_artifacts() {
 }
 
 function copy_bazel_build_status(){
-  cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${FETCH_DIR}/istio-proxy/proxy/tools/bazel_get_workspace_status
+  cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${PROXY_FETCH_DIR}/proxy/tools/bazel_get_workspace_status
 }
 
 function replace_python() {
@@ -143,14 +145,14 @@ function replace_python() {
 }
 
 function fetch() {
-  if [ ! -d "${FETCH_DIR}/istio-proxy" ]; then
-    mkdir -p ${FETCH_DIR}/istio-proxy
+  if [ ! -d "${PROXY_FETCH_DIR}" ]; then
+    mkdir -p ${PROXY_FETCH_DIR}
 
-    pushd ${FETCH_DIR}/istio-proxy
+    pushd ${PROXY_FETCH_DIR}
 
       #clone proxy
       git clone ${PROXY_GIT_REPO}
-      pushd ${FETCH_DIR}/istio-proxy/proxy
+      pushd ${PROXY_FETCH_DIR}/proxy
         git checkout ${PROXY_GIT_BRANCH}
         SHA="$(git rev-parse --verify HEAD)"
       popd
@@ -166,8 +168,8 @@ function fetch() {
       if [ ! -d "${bazel_dir}" ]; then
         set_path
 
-        pushd ${FETCH_DIR}/istio-proxy/proxy
-          bazel --output_base=${FETCH_DIR}/istio-proxy/bazel/base --output_user_root=${FETCH_DIR}/istio-proxy/bazel/root ${FETCH_OR_BUILD} //...
+        pushd ${PROXY_FETCH_DIR}/proxy
+          bazel --output_base=${PROXY_FETCH_DIR}/bazel/base --output_user_root=${PROXY_FETCH_DIR}/bazel/root ${FETCH_OR_BUILD} //...
         popd
 
         if [ "${DEBUG_FETCH}" == "true" ]; then
@@ -191,8 +193,8 @@ function fetch() {
 
 function add_path_markers() {
   pushd ${FETCH_DIR}/istio-proxy
-    sed -i "s|${FETCH_DIR}/istio-proxy/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
-    sed -i "s|${FETCH_DIR}/istio-proxy/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
+    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
+    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
   popd
 }
 
@@ -211,27 +213,27 @@ function create_tarball(){
     # create tarball
     pushd ${FETCH_DIR}
       rm -rf proxy-full.tar.xz
-      tar cf proxy-full.tar istio-proxy --atime-preserve
+      tar cf proxy-full.tar ${PROXY_DIR} --atime-preserve
       xz proxy-full.tar
     popd
   fi
 }
 
 function add_cxx_params(){
-  pushd ${FETCH_DIR}/istio-proxy/proxy
+  pushd ${PROXY_FETCH_DIR}/proxy
     sed -i '1i build --cxxopt -D_GLIBCXX_USE_CXX11_ABI=1\n' .bazelrc
     sed -i '1i build --cxxopt -DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1\n' .bazelrc
   popd
 }
 
 function use_local_go(){
-  pushd ${FETCH_DIR}/istio-proxy/proxy
+  pushd ${PROXY_FETCH_DIR}/proxy
     sed -i 's|go_register_toolchains(go_version = GO_VERSION)|go_register_toolchains(go_version="host")|g' WORKSPACE
   popd
 }
 
 function add_BUILD_SCM_REVISIONS(){
-  pushd ${FETCH_DIR}/istio-proxy/proxy
+  pushd ${PROXY_FETCH_DIR}/proxy
     sed -i "1i BUILD_SCM_REVISION=${BUILD_SCM_REVISION}\n" tools/bazel_get_workspace_status
   popd
 }
@@ -250,7 +252,7 @@ function strip_latomic(){
 }
 
 function patch_class_memaccess() {
-  pushd ${FETCH_DIR}/istio-proxy/proxy
+  pushd ${PROXY_FETCH_DIR}/proxy
 #    sed -i "s|memset(\&old_stats_, 0, sizeof(old_stats_));|free(\&old_stats_);\n  ::istio::mixerclient::Statistics new_stats;\n  old_stats_ = new_stats;|g" src/envoy/utils/stats.cc
     echo "build --cxxopt -Wno-error=class-memaccess" >> .bazelrc
   popd
@@ -258,10 +260,10 @@ function patch_class_memaccess() {
 
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
-    pushd ${FETCH_DIR}/istio-proxy/proxy
+    pushd ${PROXY_FETCH_DIR}/proxy
       git clone http://github.com/maistra/istio-proxy-openssl -b ${PROXY_GIT_BRANCH}
       pushd istio-proxy-openssl
-        ./openssl.sh ${FETCH_DIR}/istio-proxy/proxy OPENSSL
+        ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
@@ -281,7 +283,7 @@ function replace_ssl() {
     rm -rf ${CACHE_DIR}/base/external/*boringssl*
 
     # re-fetch for updated dependencies
-    pushd ${FETCH_DIR}/istio-proxy/proxy
+    pushd ${PROXY_FETCH_DIR}/proxy
       bazel --output_base=${CACHE_DIR}/base --output_user_root=${CACHE_DIR}/root fetch //...
     popd
 
@@ -293,7 +295,7 @@ function replace_ssl() {
 }
 
 function add_annobin_flags() {
-  pushd ${FETCH_DIR}/istio-proxy/proxy
+  pushd ${PROXY_FETCH_DIR}/proxy
     BUILD_OPTIONS="build --cxxopt -fPIE
 build --cxxopt -fPIC
 build --cxxopt -fcf-protection=full
@@ -364,7 +366,7 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
     replace_text
 
   popd
- 
+
   pushd ${CACHE_DIR}/base/external/com_github_luajit_luajit
     sed -i 's|CCOPT= -O2 -fomit-frame-pointer|CCOPT= -O2 -fomit-frame-pointer -fPIC -fPIE -fcf-protection=full -fplugin=annobin -fstack-protector-strong -fstack-protector-all|g' src/Makefile
   popd

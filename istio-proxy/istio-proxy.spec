@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 102e286f1ff6a95195f2bb45a0cda78911884f0b
+%global git_commit 68c3daf682ef85139af4af8c8934811b
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -29,7 +29,7 @@
 
 Name:           istio-proxy
 Version:        0.12.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
@@ -89,11 +89,11 @@ pushd ${RPM_BUILD_DIR}
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
-       
+
         echo "Dumping dynamic symbols for ${i}"
         nm -D $i --format=posix --defined-only \
   | awk '{ print $1 }' | sort > dynsyms
-        
+
         echo "Dumping function symbols for ${i}"
        nm $i --format=posix --defined-only \
   | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
@@ -116,7 +116,7 @@ pushd ${RPM_BUILD_DIR}
 
         echo "inject compressed data into .gnu_debugdata for ${i}"
         objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
-        
+
         cp -pav "stripped/${i}" "${RPM_BUILD_ROOT}%{_bindir}/"
     done
 %endif
@@ -130,12 +130,14 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Mon Jul 15 2019 Brian Avery <bavery@redhat.com>
+- Update to Maistra 0.12 release
 * Thu Jun 20 2019 William DeCoste <wdecoste@redhat.com>
   Release 0.12.0-1
 * Tue Jun 11 2019 William DeCoste <wdecoste@redhat.com>
   Release 0.12.0-0
 * Tue May 14 2019 William DeCoste <wdecoste@redhat.com>
-  Release 0.11.0-0 
+  Release 0.11.0-0
 * Thu Mar 07 2019 Dmitri Dolguikh <ddolguik@redhat.com>
   Release 0.9.0-2
 * Mon Mar 04 2019 Dmitri Dolguikh <ddolguik@redhat.com>
@@ -157,4 +159,4 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
 - Release 0.1.0-1
 * Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>
-- First package 
+- First package
