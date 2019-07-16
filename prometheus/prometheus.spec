@@ -12,8 +12,8 @@
 
 Name:           prometheus
 Version:        2.7.2
-Release:        1%{?dist}
-Summary:        An open-source systems monitoring and alerting toolkit 
+Release:        2%{?dist}
+Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
 
@@ -119,5 +119,8 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{name
 %config(noreplace) %{_sysconfdir}/%{name}/%{name}.yml
 
 %changelog
+* Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 2.7.2-2
+- Maistra 0.12.0 release
+
 * Wed Jun 19 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 2.7.2-1
 - First build
