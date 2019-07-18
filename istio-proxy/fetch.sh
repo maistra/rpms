@@ -17,8 +17,12 @@ function set_default_envs() {
     PROXY_GIT_REPO=https://github.com/maistra/proxy
   fi
 
+  if [ -z "${OPENSSL_GIT_BRANCH}" ]; then
+    OPENSSL_GIT_BRANCH=maistra-1.0
+  fi
+
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-0.12
+    PROXY_GIT_BRANCH=maistra-1.0
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
@@ -261,19 +265,19 @@ function patch_class_memaccess() {
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
     pushd ${PROXY_FETCH_DIR}/proxy
-      git clone http://github.com/maistra/istio-proxy-openssl -b ${PROXY_GIT_BRANCH}
+      git clone http://github.com/maistra/istio-proxy-openssl -b ${OPENSSL_GIT_BRANCH}
       pushd istio-proxy-openssl
         ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
-      git clone http://github.com/maistra/envoy-openssl -b ${PROXY_GIT_BRANCH}
+      git clone http://github.com/maistra/envoy-openssl -b ${OPENSSL_GIT_BRANCH}
       pushd envoy-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${SHA}
       popd
       rm -rf envoy-openssl
 
-      git clone http://github.com/maistra/jwt-verify-lib-openssl -b ${PROXY_GIT_BRANCH}
+      git clone http://github.com/maistra/jwt-verify-lib-openssl -b ${OPENSSL_GIT_BRANCH}
       pushd jwt-verify-lib-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
       popd
