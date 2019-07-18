@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 68c3daf682ef85139af4af8c8934811b
+%global git_commit 5ea236aa3f759df29ef9209d0cf8e85bf1c8fb2e
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -28,8 +28,8 @@
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        0.12.0
-Release:        2%{?dist}
+Version:        1.0.0
+Release:        0%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
@@ -130,6 +130,8 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Thu Jul 18 2019 William DeCoste <wdecoste@redhat.com>
+  Release 1.0.0-0
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com>
 - Update to Maistra 0.12 release
 * Thu Jun 20 2019 William DeCoste <wdecoste@redhat.com>
