@@ -1,0 +1,33 @@
+From ecf0e7f5cbe8fd431dfb849e56d090a63693a628 Mon Sep 17 00:00:00 2001
+From: Dmitri Dolguikh <dmitri@appliedlogic.ca>
+Date: Tue, 16 Jul 2019 15:13:54 -0700
+Subject: [PATCH] Updated compiler and ld options to make annobin-check happy
+
+---
+ build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/build.go b/build.go
+index 41441e9d8..f5dd36ca3 100644
+--- a/build.go
++++ b/build.go
+@@ -475,7 +475,7 @@ func build(binaryName, pkg string, tags []string) {
+ 	if !isDev {
+ 		rmr(binary, binary+".md5")
+ 	}
+-	args := []string{"build", "-ldflags", ldflags()}
++	args := []string{"build", "-buildmode=pie", "-ldflags", ldflags()}
+ 	if len(tags) > 0 {
+ 		args = append(args, "-tags", strings.Join(tags, ","))
+ 	}
+@@ -507,6 +507,7 @@ func build(binaryName, pkg string, tags []string) {
+ func ldflags() string {
+ 	var b bytes.Buffer
+ 	b.WriteString("-w")
++	b.WriteString(" -extldflags \"-z now\"")
+ 	b.WriteString(fmt.Sprintf(" -X main.version=%s", version))
+ 	b.WriteString(fmt.Sprintf(" -X main.commit=%s", getGitSha()))
+ 	b.WriteString(fmt.Sprintf(" -X main.buildstamp=%d", buildStamp()))
+-- 
+2.20.1
+

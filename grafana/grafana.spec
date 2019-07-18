@@ -20,6 +20,7 @@ Source1:          grafana_webpack-%{version}.tar.gz
 Patch1:           001-login-oauth-use-oauth2-exchange.patch
 Patch2:           002-remove-jaeger-tracing.patch
 Patch3:           003-new-files.patch
+Patch4:           900-make-annobin-happy.patch
 
 # Intersection of go_arches and nodejs_arches
 # FIXME? macro evaluates to empty
@@ -153,6 +154,7 @@ The Grafana prometheus datasource.
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
+%patch4 -p1
 
 # Set up build subdirs and links
 mkdir -p %{_builddir}/src/github.com/grafana
