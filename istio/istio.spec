@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.0.0-rc1
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -522,7 +522,7 @@ sort -u -o devel.file-list devel.file-list
 
 %changelog
 * Mon Jul 22 2019 Brian Avery <bavery@redhat.com> - 1.0.0-rc1
-- Updated to Maistra 1.0.0-rc1
+- Updated to Maistra 1.0.0
 
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-4
 - Updated to Maistra 0.12 release
