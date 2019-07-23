@@ -49,7 +49,7 @@ BuildRequires:  cmake3
 BuildRequires:  openssl
 BuildRequires:  openssl-devel
 
-Source0:        istio-proxy.%{checksum}.tar.xz
+Source0:        istio-proxy.%{git_commit}.tar.xz
 Source1:        build.sh
 Source2:        test.sh
 Source3:        fetch.sh
