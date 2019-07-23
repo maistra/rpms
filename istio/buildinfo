@@ -4,4 +4,3 @@ istio.io/istio/pkg/version.buildUser=redhat
 istio.io/istio/pkg/version.buildHost=redhat
 istio.io/istio/pkg/version.buildDockerHub=docker.io/maistra
 istio.io/istio/pkg/version.buildStatus=Clean
-\
