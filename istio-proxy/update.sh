@@ -20,7 +20,7 @@ function update_commit() {
 		local sha=$1
 		echo
 		echo "Updating spec file with ${sha}"
-    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" istio-proxy.spec
+		sed -i "s/%global git_commit .*/%global git_commit ${sha}/" istio-proxy.spec
 }
 
 function new_sources() {
@@ -33,7 +33,7 @@ function new_sources() {
 function get_sources() {
 	local proxy_sha=$1
 	FETCH_DIR=/tmp CREATE_TARBALL=true ./fetch.sh
-	local tar_name=istio-proxy.${1}.tar.xz
+	local tar_name=istio-proxy.${proxy_sha}.tar.xz
 	cp -p /tmp/proxy-full.tar.xz ${tar_name}
 
 	new_sources ${tar_name}
