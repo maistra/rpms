@@ -28,6 +28,13 @@ function new_sources() {
 	echo
 	echo "Updating sources file with ${filename}"
 	md5sum ${filename} > sources
+	local checksum=$(awk '{print $1}' sources)
+
+	sed -i "s/%global checksum .*/%global checksum ${checksum}/" istio-proxy.spec
+
+	local checksumFilename=istio-proxy.${checksum}.tar.xz
+	mv $filename $checksumFilename
+	sed -i "s/${filename}/${checksumFilename}/" sources
 }
 
 function get_sources() {
@@ -37,7 +44,7 @@ function get_sources() {
 	cp -p /tmp/proxy-full.tar.xz ${tar_name}
 
 	new_sources ${tar_name}
-	md5sum ${tar_name} > sources
+
 }
 
 update_commit "${PROXY_SHA}"
