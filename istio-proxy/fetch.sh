@@ -2,28 +2,56 @@ set -x
 set -e
 
 PROXY_DIR=${PROXY_DIR:-istio-proxy}
+
 function check_envs() {
   if [ -z "$FETCH_DIR" ]; then
     echo "FETCH_DIR required. Please set"
     exit 1
   fi
 
-	PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
   CACHE_DIR=${PROXY_FETCH_DIR}/bazel
+}
+
+function check_git_hashes() {
+  local commit_hash_name="$1"
+  local tarball_hash_name="$2"
+  eval commit_hash=\$$commit_hash_name
+  eval tarball_hash=\$$tarball_hash_name
+
+  if [ ! -z "${commit_hash}" ] || [ ! -z "${tarball_hash}" ]; then
+    if [ -z "${commit_hash}" ]; then
+      echo "ERROR: ${tarball_hash_name} was set but missing ${commit_hash_name}";
+      exit 1;
+    fi
+
+    if [ -z "${tarball_hash}" ]; then
+      echo "ERROR: ${commit_hash_name} was set but missing ${tarball_hash_name}";
+      exit 1;
+    fi
+  fi
 }
 
 function set_default_envs() {
   if [ -z "${PROXY_GIT_REPO}" ]; then
     PROXY_GIT_REPO=https://github.com/maistra/proxy
   fi
+  check_git_hashes "PROXY_GIT_COMMIT_HASH" "PROXY_TARBALL_SHA256"
 
-  if [ -z "${OPENSSL_GIT_BRANCH}" ]; then
-    OPENSSL_GIT_BRANCH=maistra-1.0
+  if [ -z "${ISTIO_PROXY_OPENSSL_GIT_REPO}" ]; then
+    ISTIO_PROXY_OPENSSL_GIT_REPO=https://github.com/maistra/istio-proxy-openssl
   fi
+  check_git_hashes "ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH" "ISTIO_PROXY_OPENSSL_TARBALL_SHA256"
 
-  if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-1.0
+  if [ -z "${ENVOY_OPENSSL_GIT_REPO}" ]; then
+    ENVOY_OPENSSL_GIT_REPO=https://github.com/maistra/envoy-openssl
   fi
+  check_git_hashes "ENVOY_OPENSSL_GIT_COMMIT_HASH" "ENVOY_OPENSSL_TARBALL_SHA256"
+
+  if [ -z "${JWT_VERIFY_LIB_OPENSSL_GIT_REPO}" ]; then
+    JWT_VERIFY_LIB_OPENSSL_GIT_REPO=https://github.com/maistra/jwt-verify-lib-openssl
+  fi
+  check_git_hashes "JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH" "JWT_VERIFY_LIB_OPENSSL_TARBALL_SHA256"
 
   if [ -z "${CLEAN_FETCH}" ]; then
     CLEAN_FETCH=true
@@ -148,18 +176,44 @@ function replace_python() {
   set_python_rules_date
 }
 
+function extract_dependency() {
+  local name="$1"
+  local repo="$2"
+  local branch="$3"
+  local commit="$4"
+  local sha="$5"
+ 
+  if [ "${commit}" != "" ]; then
+    wget "${repo}/archive/${commit}.tar.gz"
+    echo "${sha} ${commit}.tar.gz" | sha256sum --check
+    if [ "$?" == "1" ]; then
+      echo "ERROR: Checksum for ${name} did NOT match"
+      exit 1
+    fi
+    tar xvf "${commit}.tar.gz"
+    rm "${commit}.tar.gz"
+    mv "${name}-${commit}" "${name}"
+  else
+    git clone ${repo}
+    pushd ${name}
+      if [ "${branch}" == "" ]; then
+        branch=$(git branch | grep \* | cut -d ' ' -f2)
+      fi
+      git checkout ${branch}
+      if [ "${name}" == "proxy" ]; then
+        PROXY_SHA="$(git rev-parse --verify HEAD)"
+      fi
+    popd
+  fi
+}
+
 function fetch() {
   if [ ! -d "${PROXY_FETCH_DIR}" ]; then
     mkdir -p ${PROXY_FETCH_DIR}
 
     pushd ${PROXY_FETCH_DIR}
 
-      #clone proxy
-      git clone ${PROXY_GIT_REPO}
-      pushd ${PROXY_FETCH_DIR}/proxy
-        git checkout ${PROXY_GIT_BRANCH}
-        SHA="$(git rev-parse --verify HEAD)"
-      popd
+      extract_dependency "proxy" "${PROXY_GIT_REPO}" "${PROXY_GIT_BRANCH}" "${PROXY_GIT_COMMIT_HASH}" "${PROXY_TARBALL_SHA256}" 
 
       use_local_go
       copy_bazel_build_status
@@ -264,20 +318,22 @@ function patch_class_memaccess() {
 
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
+
+
     pushd ${PROXY_FETCH_DIR}/proxy
-      git clone http://github.com/maistra/istio-proxy-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "istio-proxy-openssl" "${ISTIO_PROXY_OPENSSL_GIT_REPO}" "${ISTIO_PROXY_OPENSSL_GIT_BRANCH}" "${ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH}" "${ISTIO_PROXY_OPENSSL_TARBALL_SHA256}"
       pushd istio-proxy-openssl
         ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
-      git clone http://github.com/maistra/envoy-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "envoy-openssl" "${ENVOY_OPENSSL_GIT_REPO}" "${ENVOY_OPENSSL_GIT_BRANCH}" "${ENVOY_OPENSSL_GIT_COMMIT_HASH}" "${ENVOY_OPENSSL_TARBALL_SHA256}"
       pushd envoy-openssl
-        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${SHA}
+        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${PROXY_SHA}
       popd
       rm -rf envoy-openssl
 
-      git clone http://github.com/maistra/jwt-verify-lib-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "jwt-verify-lib-openssl" "${JWT_VERIFY_LIB_OPENSSL_GIT_REPO}" "${JWT_VERIFY_LIB_OPENSSL_GIT_BRANCH}" "${JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH}" "${JWT_VERIFY_LIB_OPENSSL_TARBALL_SHA256}"
       pushd jwt-verify-lib-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
       popd
