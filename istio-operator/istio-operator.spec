@@ -104,16 +104,22 @@ popd
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 pushd OPERATOR/src/github.com/maistra/istio-operator/_output/
 cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
+popd
 
+#install manifests
+install -d $RPM_BUILD_ROOT/manifests
+cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests/* $RPM_BUILD_ROOT/manifests
 
 %files
 %{_bindir}/istio-operator
 %{_sysconfdir}/istio-operator
+/manifests
 
 %changelog
+* Thu Jul 26 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 1.0.0-1
+- Added manifests dir
 * Fri Jul 26 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.0-1
 - Bump to 1.0
-
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
 - Update to Maistra 0.12.0 release
 * Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-1
