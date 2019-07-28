@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit 7a02a2e4fd34ea003ec69c8db184d109423bb85a
+%global git_commit 3dc10e253539f1da8cf5d111a75814576db1decc
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -13,8 +13,8 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        0.12.0
-Release:        4%{?dist}
+Version:        1.0.0
+Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
 URL:            https://%{provider_prefix}

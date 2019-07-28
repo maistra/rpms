@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit a0a64d8cfa8e6de4b924f2db4374f1065b3e91ab
+%global git_commit 6fa7084f530548d835688b3bf6b328b0d1869939
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        0.12.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0

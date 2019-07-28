@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 5ea236aa3f759df29ef9209d0cf8e85bf1c8fb2e
+%global git_commit 300a927e82a9d952889b8f4de1e0889d4e20e07d
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/istio/proxy
@@ -23,7 +23,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum        6e6bc38adb9619dabd9485d989ea729d
+%global checksum 6fbb9b5ea31c26a3abc11a81db36d73e
 
 %global _prefix /usr/local
 
