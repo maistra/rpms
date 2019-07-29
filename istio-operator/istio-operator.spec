@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit da45d07fc9bade0c12b661044a98a416c5cd62c6
+%global git_commit 45acc115938190dc9264b0c6418edf2b818a9815
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -78,7 +78,7 @@ tar zxf %{SOURCE1} -C OPERATOR/src/github.com/maistra/istio --strip=1
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-make VERSION=%{version} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version}-%{release}
+make
 popd
 
 cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/_output
