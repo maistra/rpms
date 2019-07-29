@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 3b15e591b9a0279e0c512caa5825880732b6e751
+%global git_commit 13474e6d7abacb4840d2ce0e1c666b5bb977a4cb
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit f1f5fa9e453513c8100da8020dab0db8f3bcdf9a
+%global charts_git_commit 3737fc7fad5947ec3061c7f496409ea033d4bc9b
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
