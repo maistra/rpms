@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit da45d07fc9bade0c12b661044a98a416c5cd62c6
+%global git_commit 13474e6d7abacb4840d2ce0e1c666b5bb977a4cb
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -38,8 +38,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.0.0
-Release:        1%{?dist}
+Version:        0.12.0
+Release:        3%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -78,18 +78,17 @@ tar zxf %{SOURCE1} -C OPERATOR/src/github.com/maistra/istio --strip=1
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-make VERSION=%{version} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version}-%{release}
-popd
+./tmp/build/build.sh
 
-cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/_output
-pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} HELM_DIR=./_output/helm make patch-charts
 popd
+cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
+pushd src/github.com/maistra/istio-operator/
+COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
-pushd OPERATOR/src/github.com/maistra/istio-operator/_output/bin/
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
 
 %if 0%{?with_debug}
     cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
@@ -102,7 +101,7 @@ popd
 
 # install the charts
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
-pushd OPERATOR/src/github.com/maistra/istio-operator/_output/
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/
 cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
 popd
 
@@ -118,8 +117,6 @@ cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests/* $RPM_BUILD_ROO
 %changelog
 * Thu Jul 26 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 1.0.0-1
 - Added manifests dir
-* Fri Jul 26 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.0-1
-- Bump to 1.0
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
 - Update to Maistra 0.12.0 release
 * Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-1
