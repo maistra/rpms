@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 13474e6d7abacb4840d2ce0e1c666b5bb977a4cb
+%global git_commit 94f61018e6921b086e8b8b2da98ef8d6877e10f0
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit 3737fc7fad5947ec3061c7f496409ea033d4bc9b
+%global charts_git_commit cb1c5a1b87d021f82f984c3b369d5675fb198323
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -38,8 +38,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        0.12.0
-Release:        3%{?dist}
+Version:        1.0.0
+Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -78,7 +78,7 @@ tar zxf %{SOURCE1} -C OPERATOR/src/github.com/maistra/istio --strip=1
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-./tmp/build/build.sh
+VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} ./tmp/build/build.sh
 
 popd
 cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
