@@ -107,7 +107,7 @@ popd
 
 #install manifests
 install -d $RPM_BUILD_ROOT/manifests
-cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests/* $RPM_BUILD_ROOT/manifests
+cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-maistra/* $RPM_BUILD_ROOT/manifests
 
 %files
 %{_bindir}/istio-operator
