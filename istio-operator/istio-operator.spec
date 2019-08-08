@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 94f61018e6921b086e8b8b2da98ef8d6877e10f0
+%global git_commit d6365d967cf2bc9ddd293a90bb8b3d64e34a0a0b
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit cb1c5a1b87d021f82f984c3b369d5675fb198323
+%global charts_git_commit ca7f4aebb567ca445bd2a9abda722f824f948c3a
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -39,7 +39,7 @@
 
 Name:           istio-operator
 Version:        1.0.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -109,12 +109,27 @@ popd
 install -d $RPM_BUILD_ROOT/manifests
 cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-maistra/* $RPM_BUILD_ROOT/manifests
 
+# install the templates
+TEMPLATES_DIR=$RPM_BUILD_ROOT%/usr/share/istio-operator/default-templates
+mkdir -p ${TEMPLATES_DIR}
+if [[ "%{community_build}"  == "true" ]]; then
+        cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/maistra ${TEMPLATES_DIR}/default
+else
+        cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/servicemesh ${TEMPLATES_DIR}/default
+fi
+cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/base ${TEMPLATES_DIR}/base
+
 %files
 %{_bindir}/istio-operator
 %{_sysconfdir}/istio-operator
+/usr/share/istio-operator
 /manifests
 
 %changelog
+* Thu Aug 08 2019 Daniel Grimm <dgrimm@redhat.com> - 1.0.0-2
+- Added templates directory
+- pulled in latest operator changes
+- pulled in latest Maistra charts
 * Thu Jul 26 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 1.0.0-1
 - Added manifests dir
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
