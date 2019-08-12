@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit d6365d967cf2bc9ddd293a90bb8b3d64e34a0a0b
+%global git_commit 1ec276242a4c4f5e50d5c64c0cadce9c90152249
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit ca7f4aebb567ca445bd2a9abda722f824f948c3a
+%global charts_git_commit fc009edb73a1f20cebc785f81c632feba9e2fa2e
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -86,6 +86,12 @@ pushd src/github.com/maistra/istio-operator/
 COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
+if [[ "%{community_build}"  == "true" ]]; then
+  BUILD_TYPE="maistra"
+else
+  BUILD_TYPE="servicemesh"
+fi
+
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
@@ -100,29 +106,24 @@ pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
 popd
 
 # install the charts
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm/%{charts_version}
 pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/
-cp -rpav helm/ $RPM_BUILD_ROOT%{_sysconfdir}/istio-operator/%{charts_version}
+cp -rpavT helm/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm/%{charts_version}
 popd
 
 #install manifests
 install -d $RPM_BUILD_ROOT/manifests
-cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-maistra/* $RPM_BUILD_ROOT/manifests
+cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-${BUILD_TYPE}/* $RPM_BUILD_ROOT/manifests
 
 # install the templates
-TEMPLATES_DIR=$RPM_BUILD_ROOT%/usr/share/istio-operator/default-templates
+TEMPLATES_DIR=$RPM_BUILD_ROOT/%{_datadir}/istio-operator/default-templates
 mkdir -p ${TEMPLATES_DIR}
-if [[ "%{community_build}"  == "true" ]]; then
-        cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/maistra ${TEMPLATES_DIR}/default
-else
-        cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/servicemesh ${TEMPLATES_DIR}/default
-fi
+cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/${BUILD_TYPE} ${TEMPLATES_DIR}/default
 cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/base ${TEMPLATES_DIR}/base
 
 %files
 %{_bindir}/istio-operator
-%{_sysconfdir}/istio-operator
-/usr/share/istio-operator
+%{_datadir}/istio-operator
 /manifests
 
 %changelog
