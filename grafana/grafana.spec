@@ -5,7 +5,7 @@
 
 Name:             grafana
 Version:          %{version}
-Release:          2%{?dist}
+Release:          3%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
@@ -28,9 +28,6 @@ Patch4:           900-make-annobin-happy.patch
 
 # omit golang debugsource, see BZ995136 and related
 %global           _debugsource_template %{nil}
-
-%global           GRAFANA_USER %{name}
-%global           GRAFANA_GROUP %{name}
 %global           GRAFANA_HOME %{_datadir}/%{name}
 
 # grafana-server service daemon uses systemd
@@ -267,18 +264,6 @@ install -d %{buildroot}%{_unitdir} # only needed for manual rpmbuilds
 install -p -m 644 packaging/rpm/systemd/grafana-server.service \
     %{buildroot}%{_unitdir}
 
-# daemon run pid file config for using tmpfs
-install -d %{buildroot}%{_tmpfilesdir}
-echo "d %{_rundir}/%{name} 0755 %{GRAFANA_USER} %{GRAFANA_GROUP} -" \
-    > %{buildroot}%{_tmpfilesdir}/%{name}.conf
-
-%pre
-getent group %{GRAFANA_GROUP} >/dev/null || groupadd -r %{GRAFANA_GROUP}
-getent passwd %{GRAFANA_USER} >/dev/null || \
-    useradd -r -g %{GRAFANA_GROUP} -d %{GRAFANA_HOME} -s /sbin/nologin \
-    -c "%{GRAFANA_USER} user account" %{GRAFANA_USER}
-exit 0
-
 %files
 # binaries
 %{_sbindir}/%{name}-server
@@ -286,16 +271,12 @@ exit 0
 
 # config files
 %dir %{_sysconfdir}/%{name}
-%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/grafana.ini
-%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/ldap.toml
+%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{name}/grafana.ini
+%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{name}/ldap.toml
 %config(noreplace) %{_sysconfdir}/sysconfig/grafana-server
 
-# Grafana configuration to dynamically create /run/grafana/grafana.pid on tmpfs
-%{_tmpfilesdir}/%{name}.conf
-
-# config database directory and plugins (actual db files are created by grafana-server)
-%attr(-, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_sharedstatedir}/%{name}
-%attr(-, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_sharedstatedir}/%{name}/plugins
+%dir %{_sharedstatedir}/%{name}
+%dir %{_sharedstatedir}/%{name}/plugins
 
 # shared directory and all files therein, except some datasources
 %{_datadir}/%{name}/public
@@ -317,13 +298,13 @@ exit 0
 %exclude %{dsdir}/stackdriver
 
 %dir %{_datadir}/%{name}/conf
-%attr(-, root, %{GRAFANA_GROUP}) %{_datadir}/%{name}/conf/*
+%{_datadir}/%{name}/conf/*
 
 # systemd service file
 %{_unitdir}/grafana-server.service
 
 # log directory - grafana.log is created by grafana-server, and it does it's own log rotation
-%attr(0755, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_localstatedir}/log/%{name}
+%attr(0755, root, root) %dir %{_localstatedir}/log/%{name}
 
 # man pages for grafana binaries
 %{_mandir}/man1/%{name}-server.1*
@@ -338,6 +319,9 @@ exit 0
 %{_datadir}/%{name}/public/app/plugins/datasource/prometheus
 
 %changelog
+* Fri Aug 16 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 6.2.2-3
+- Removed grafana user creation
+
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 6.2.2-2
 - Maistra 0.12.0 release
 
