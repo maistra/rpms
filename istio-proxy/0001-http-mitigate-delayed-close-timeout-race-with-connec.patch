@@ -1,0 +1,664 @@
+From b08951bd81b6118ed22357e681814ce0e094724e Mon Sep 17 00:00:00 2001
+From: Andres Guedez <34292400+AndresGuedez@users.noreply.github.com>
+Date: Fri, 12 Apr 2019 11:39:09 -0400
+Subject: [PATCH] http: mitigate delayed close timeout race with connection
+ write buffer flush (#6437)
+
+Change the behavior of the delayed_close_timeout such that it won't trigger unless there
+has been at least a delayed_close_timeout period of inactivity after the last write event on
+the socket pending to be closed.
+
+This mitigates a race where a slow client and/or low timeout value would cause the socket
+to be closed while data was actively being written to the socket. Note that this change does
+not eliminate this race since a slow client could still be considered idle by the updated timeout
+logic, but this should be very rare when useful values (i.e., >1s to avoid the race condition on
+close that this timer addresses) are configured.
+
+Risk Level: Medium
+Testing: New unit tests added
+Docs Changes: Updated version history and HttpConnectionManager proto doc
+Fixes #6392
+
+Signed-off-by: Andres Guedez <aguedez@google.com>
+Signed-off-by: Piotr Sikora <piotrsikora@google.com>
+---
+ .../v2/http_connection_manager.proto               |  21 +-
+ docs/root/intro/version_history.rst                |   1 +
+ include/envoy/network/connection.h                 |   1 +
+ source/common/network/connection_impl.cc           | 102 ++++++---
+ source/common/network/connection_impl.h            |  22 +-
+ test/common/network/connection_impl_test.cc        | 237 ++++++++++++++++-----
+ test/integration/tcp_proxy_integration_test.cc     |   2 +-
+ tools/spelling_dictionary.txt                      |   1 +
+ 8 files changed, 291 insertions(+), 96 deletions(-)
+
+diff --git a/api/envoy/config/filter/network/http_connection_manager/v2/http_connection_manager.proto b/api/envoy/config/filter/network/http_connection_manager/v2/http_connection_manager.proto
+index b2bc2b8..18a479d 100644
+--- a/api/envoy/config/filter/network/http_connection_manager/v2/http_connection_manager.proto
++++ b/api/envoy/config/filter/network/http_connection_manager/v2/http_connection_manager.proto
+@@ -200,8 +200,14 @@ message HttpConnectionManager {
+ 
+   // The delayed close timeout is for downstream connections managed by the HTTP connection manager.
+   // It is defined as a grace period after connection close processing has been locally initiated
+-  // during which Envoy will flush the write buffers for the connection and await the peer to close
+-  // (i.e., a TCP FIN/RST is received by Envoy from the downstream connection).
++  // during which Envoy will wait for the peer to close (i.e., a TCP FIN/RST is received by Envoy
++  // from the downstream connection) prior to Envoy closing the socket associated with that
++  // connection.
++  // NOTE: This timeout is enforced even when the socket associated with the downstream connection
++  // is pending a flush of the write buffer. However, any progress made writing data to the socket
++  // will restart the timer associated with this timeout. This means that the total grace period for
++  // a socket in this state will be
++  // <total_time_waiting_for_write_buffer_flushes>+<delayed_close_timeout>.
+   //
+   // Delaying Envoy's connection close and giving the peer the opportunity to initiate the close
+   // sequence mitigates a race condition that exists when downstream clients do not drain/process
+@@ -213,8 +219,15 @@ message HttpConnectionManager {
+   //
+   // The default timeout is 1000 ms if this option is not specified.
+   //
+-  // A value of 0 will completely disable delayed close processing, and the downstream connection's
+-  // socket will be closed immediately after the write flush is completed.
++  // .. NOTE::
++  //    To be useful in avoiding the race condition described above, this timeout must be set
++  //    to *at least* <max round trip time expected between clients and Envoy>+<100ms to account for
++  //    a reasonsable "worst" case processing time for a full iteration of Envoy's event loop>.
++  //
++  // .. WARNING::
++  //    A value of 0 will completely disable delayed close processing. When disabled, the downstream
++  //    connection's socket will be closed immediately after the write flush is completed or will
++  //    never close if the write flush does not complete.
+   google.protobuf.Duration delayed_close_timeout = 26 [(gogoproto.stdduration) = true];
+ 
+   // Configuration for :ref:`HTTP access logs <arch_overview_access_logs>`
+diff --git a/docs/root/intro/version_history.rst b/docs/root/intro/version_history.rst
+index 8291ba9..ea0901d 100644
+--- a/docs/root/intro/version_history.rst
++++ b/docs/root/intro/version_history.rst
+@@ -57,6 +57,7 @@ Version history
+   more info in the `bazel docs <https://github.com/envoyproxy/envoy/blob/master/bazel/README.md#enabling-optional-features>`_.
+ * tool: added :repo:`proto <test/tools/router_check/validation.proto>` support for :ref:`router check tool <install_tools_route_table_check_tool>` tests.
+ * tracing: add trace sampling configuration to the route, to override the route level.
++* http: mitigated a race condition with the :ref:`delayed_close_timeout<envoy_api_field_config.filter.network.http_connection_manager.v2.HttpConnectionManager.delayed_close_timeout>` where it could trigger while actively flushing a pending write buffer for a downstream connection.
+ * upstream: added :ref:`upstream_cx_pool_overflow <config_cluster_manager_cluster_stats>` for the connection pool circuit breaker.
+ * upstream: an EDS management server can now force removal of a host that is still passing active
+   health checking by first marking the host as failed via EDS health check and subsequently removing
+diff --git a/include/envoy/network/connection.h b/include/envoy/network/connection.h
+index 28420a3..20cf091 100644
+--- a/include/envoy/network/connection.h
++++ b/include/envoy/network/connection.h
+@@ -254,6 +254,7 @@ public:
+ 
+   /**
+    * Set the timeout for delayed connection close()s.
++   * This can only be called prior to issuing a close() on the connection.
+    * @param timeout The timeout value in milliseconds
+    */
+   virtual void setDelayedCloseTimeout(std::chrono::milliseconds timeout) PURE;
+diff --git a/source/common/network/connection_impl.cc b/source/common/network/connection_impl.cc
+index e4e1753..871ac6e 100644
+--- a/source/common/network/connection_impl.cc
++++ b/source/common/network/connection_impl.cc
+@@ -99,6 +99,7 @@ void ConnectionImpl::close(ConnectionCloseType type) {
+ 
+   uint64_t data_to_write = write_buffer_->length();
+   ENVOY_CONN_LOG(debug, "closing data_to_write={} type={}", *this, data_to_write, enumToInt(type));
++  const bool delayed_close_timeout_set = delayedCloseTimeout().count() > 0;
+   if (data_to_write == 0 || type == ConnectionCloseType::NoFlush ||
+       !transport_socket_->canFlushClose()) {
+     if (data_to_write > 0) {
+@@ -107,13 +108,25 @@ void ConnectionImpl::close(ConnectionCloseType type) {
+       transport_socket_->doWrite(*write_buffer_, true);
+     }
+ 
+-    closeSocket(ConnectionEvent::LocalClose);
++    if (type == ConnectionCloseType::FlushWriteAndDelay && delayed_close_timeout_set) {
++      // The socket is being closed and either there is no more data to write or the data can not be
++      // flushed (!transport_socket_->canFlushClose()). Since a delayed close has been requested,
++      // start the delayed close timer if it hasn't been done already by a previous close().
++      // NOTE: Even though the delayed_close_state_ is being set to CloseAfterFlushAndWait, since
++      // a write event is not being registered for the socket, this logic is simply setting the
++      // timer and waiting for it to trigger to close the socket.
++      if (!inDelayedClose()) {
++        initializeDelayedCloseTimer();
++        delayed_close_state_ = DelayedCloseState::CloseAfterFlushAndWait;
++      }
++    } else {
++      closeSocket(ConnectionEvent::LocalClose);
++    }
+   } else {
+     ASSERT(type == ConnectionCloseType::FlushWrite ||
+            type == ConnectionCloseType::FlushWriteAndDelay);
+ 
+-    // No need to continue if a FlushWrite/FlushWriteAndDelay has already been issued and there is a
+-    // pending delayed close.
++    // If there is a pending delayed close, simply update the delayed close state.
+     //
+     // An example of this condition manifests when a downstream connection is closed early by Envoy,
+     // such as when a route can't be matched:
+@@ -123,35 +136,31 @@ void ConnectionImpl::close(ConnectionCloseType type) {
+     //          ConnectionManagerImpl::checkForDeferredClose()
+     //     2) A second close is issued by a subsequent call to
+     //        ConnectionManagerImpl::checkForDeferredClose() prior to returning from onData()
+-    if (delayed_close_) {
++    if (inDelayedClose()) {
++      // Validate that a delayed close timer is already enabled unless it was disabled via
++      // configuration.
++      ASSERT(!delayed_close_timeout_set || delayed_close_timer_ != nullptr);
++      if (type == ConnectionCloseType::FlushWrite || !delayed_close_timeout_set) {
++        delayed_close_state_ = DelayedCloseState::CloseAfterFlush;
++      } else {
++        delayed_close_state_ = DelayedCloseState::CloseAfterFlushAndWait;
++      }
+       return;
+     }
+ 
+-    delayed_close_ = true;
+-    const bool delayed_close_timeout_set = delayedCloseTimeout().count() > 0;
+-
+-    // NOTE: the delayed close timeout (if set) affects both FlushWrite and FlushWriteAndDelay
+-    // closes:
+-    //   1. For FlushWrite, the timeout sets an upper bound on how long to wait for the flush to
+-    //   complete before the connection is locally closed.
+-    //   2. For FlushWriteAndDelay, the timeout specifies an upper bound on how long to wait for the
+-    //   flush to complete and the peer to close the connection before it is locally closed.
+-
+     // All close types that follow do not actually close() the socket immediately so that buffered
+     // data can be written. However, we do want to stop reading to apply TCP backpressure.
+     read_enabled_ = false;
+ 
+-    // Force a closeSocket() after the write buffer is flushed if the close_type calls for it or if
+-    // no delayed close timeout is set.
+-    close_after_flush_ = !delayed_close_timeout_set || type == ConnectionCloseType::FlushWrite;
+-
+-    // Create and activate a timer which will immediately close the connection if triggered.
+-    // A config value of 0 disables the timeout.
++    // NOTE: At this point, it's already been validated that the connection is not already in
++    // delayed close processing and therefore the timer has not yet been created.
+     if (delayed_close_timeout_set) {
+-      delayed_close_timer_ = dispatcher_.createTimer([this]() -> void { onDelayedCloseTimeout(); });
+-      ENVOY_CONN_LOG(debug, "setting delayed close timer with timeout {} ms", *this,
+-                     delayedCloseTimeout().count());
+-      delayed_close_timer_->enableTimer(delayedCloseTimeout());
++      initializeDelayedCloseTimer();
++      delayed_close_state_ = (type == ConnectionCloseType::FlushWrite)
++                                 ? DelayedCloseState::CloseAfterFlush
++                                 : DelayedCloseState::CloseAfterFlushAndWait;
++    } else {
++      delayed_close_state_ = DelayedCloseState::CloseAfterFlush;
+     }
+ 
+     file_event_->setEnabled(Event::FileReadyType::Write |
+@@ -162,7 +171,7 @@ void ConnectionImpl::close(ConnectionCloseType type) {
+ Connection::State ConnectionImpl::state() const {
+   if (!ioHandle().isOpen()) {
+     return State::Closed;
+-  } else if (delayed_close_) {
++  } else if (inDelayedClose()) {
+     return State::Closing;
+   } else {
+     return State::Open;
+@@ -534,21 +543,37 @@ void ConnectionImpl::onWriteReady() {
+   uint64_t new_buffer_size = write_buffer_->length();
+   updateWriteBufferStats(result.bytes_processed_, new_buffer_size);
+ 
++  // NOTE: If the delayed_close_timer_ is set, it must only trigger after a delayed_close_timeout_
++  // period of inactivity from the last write event. Therefore, the timer must be reset to its
++  // original timeout value unless the socket is going to be closed as a result of the doWrite().
++
+   if (result.action_ == PostIoAction::Close) {
+     // It is possible (though unlikely) for the connection to have already been closed during the
+     // write callback. This can happen if we manage to complete the SSL handshake in the write
+     // callback, raise a connected event, and close the connection.
+     closeSocket(ConnectionEvent::RemoteClose);
+-  } else if ((close_after_flush_ && new_buffer_size == 0) || bothSidesHalfClosed()) {
++  } else if ((inDelayedClose() && new_buffer_size == 0) || bothSidesHalfClosed()) {
+     ENVOY_CONN_LOG(debug, "write flush complete", *this);
+-    closeSocket(ConnectionEvent::LocalClose);
+-  } else if (result.action_ == PostIoAction::KeepOpen && result.bytes_processed_ > 0) {
+-    for (BytesSentCb& cb : bytes_sent_callbacks_) {
+-      cb(result.bytes_processed_);
+-
+-      // If a callback closes the socket, stop iterating.
+-      if (!ioHandle().isOpen()) {
+-        return;
++    if (delayed_close_state_ == DelayedCloseState::CloseAfterFlushAndWait) {
++      ASSERT(delayed_close_timer_ != nullptr);
++      delayed_close_timer_->enableTimer(delayedCloseTimeout());
++    } else {
++      ASSERT(bothSidesHalfClosed() || delayed_close_state_ == DelayedCloseState::CloseAfterFlush);
++      closeSocket(ConnectionEvent::LocalClose);
++    }
++  } else {
++    ASSERT(result.action_ == PostIoAction::KeepOpen);
++    if (delayed_close_timer_ != nullptr) {
++      delayed_close_timer_->enableTimer(delayedCloseTimeout());
++    }
++    if (result.bytes_processed_ > 0) {
++      for (BytesSentCb& cb : bytes_sent_callbacks_) {
++        cb(result.bytes_processed_);
++
++        // If a callback closes the socket, stop iterating.
++        if (!ioHandle().isOpen()) {
++          return;
++        }
+       }
+     }
+   }
+@@ -587,6 +612,7 @@ bool ConnectionImpl::bothSidesHalfClosed() {
+ }
+ 
+ void ConnectionImpl::onDelayedCloseTimeout() {
++  delayed_close_timer_.reset();
+   ENVOY_CONN_LOG(debug, "triggered delayed close", *this);
+   if (connection_stats_ != nullptr && connection_stats_->delayed_close_timeouts_ != nullptr) {
+     connection_stats_->delayed_close_timeouts_->inc();
+@@ -594,6 +620,14 @@ void ConnectionImpl::onDelayedCloseTimeout() {
+   closeSocket(ConnectionEvent::LocalClose);
+ }
+ 
++void ConnectionImpl::initializeDelayedCloseTimer() {
++  const auto timeout = delayedCloseTimeout().count();
++  ASSERT(delayed_close_timer_ == nullptr && timeout > 0);
++  delayed_close_timer_ = dispatcher_.createTimer([this]() -> void { onDelayedCloseTimeout(); });
++  ENVOY_CONN_LOG(debug, "setting delayed close timer with timeout {} ms", *this, timeout);
++  delayed_close_timer_->enableTimer(delayedCloseTimeout());
++}
++
+ absl::string_view ConnectionImpl::transportFailureReason() const {
+   return transport_socket_->failureReason();
+ }
+diff --git a/source/common/network/connection_impl.h b/source/common/network/connection_impl.h
+index c2fb258..97e0e21 100644
+--- a/source/common/network/connection_impl.h
++++ b/source/common/network/connection_impl.h
+@@ -122,6 +122,8 @@ public:
+   static uint64_t nextGlobalIdForTest() { return next_global_id_; }
+ 
+   void setDelayedCloseTimeout(std::chrono::milliseconds timeout) override {
++    // Validate that this is only called prior to issuing a close() or closeSocket().
++    ASSERT(delayed_close_timer_ == nullptr && ioHandle().isOpen());
+     delayed_close_timeout_ = timeout;
+   }
+   std::chrono::milliseconds delayedCloseTimeout() const override { return delayed_close_timeout_; }
+@@ -167,16 +169,32 @@ private:
+   // Callback issued when a delayed close timeout triggers.
+   void onDelayedCloseTimeout();
+ 
++  void initializeDelayedCloseTimer();
++  bool inDelayedClose() const { return delayed_close_state_ != DelayedCloseState::None; }
++
+   static std::atomic<uint64_t> next_global_id_;
+ 
++  // States associated with delayed closing of the connection (i.e., when the underlying socket is
++  // not immediately close()d as a result of a ConnectionImpl::close()).
++  enum class DelayedCloseState {
++    None,
++    // The socket will be closed immediately after the buffer is flushed _or_ if a period of
++    // inactivity after the last write event greater than or equal to delayed_close_timeout_ has
++    // elapsed.
++    CloseAfterFlush,
++    // The socket will be closed after a grace period of delayed_close_timeout_ has elapsed after
++    // the socket is flushed _or_ if a period of inactivity after the last write event greater than
++    // or equal to delayed_close_timeout_ has elapsed.
++    CloseAfterFlushAndWait
++  };
++  DelayedCloseState delayed_close_state_{DelayedCloseState::None};
++
+   Event::Dispatcher& dispatcher_;
+   const uint64_t id_;
+   Event::TimerPtr delayed_close_timer_;
+   std::list<ConnectionCallbacks*> callbacks_;
+   std::list<BytesSentCb> bytes_sent_callbacks_;
+   bool read_enabled_{true};
+-  bool close_after_flush_{false};
+-  bool delayed_close_{false};
+   bool above_high_watermark_{false};
+   bool detect_early_close_{true};
+   bool enable_half_close_{false};
+diff --git a/test/common/network/connection_impl_test.cc b/test/common/network/connection_impl_test.cc
+index 95a6c60..66b3b2b 100644
+--- a/test/common/network/connection_impl_test.cc
++++ b/test/common/network/connection_impl_test.cc
+@@ -176,9 +176,11 @@ protected:
+ 
+ protected:
+   struct ConnectionMocks {
+-    std::unique_ptr<NiceMock<Event::MockDispatcher>> dispatcher;
+-    Event::MockTimer* timer;
+-    std::unique_ptr<NiceMock<MockTransportSocket>> transport_socket;
++    std::unique_ptr<NiceMock<Event::MockDispatcher>> dispatcher_;
++    Event::MockTimer* timer_;
++    std::unique_ptr<NiceMock<MockTransportSocket>> transport_socket_;
++    NiceMock<Event::MockFileEvent>* file_event_;
++    Event::FileReadyCb* file_ready_cb_;
+   };
+ 
+   ConnectionMocks createConnectionMocks() {
+@@ -193,17 +195,20 @@ protected:
+ 
+     // This timer will be returned (transferring ownership) to the ConnectionImpl when createTimer()
+     // is called to allocate the delayed close timer.
+-    auto timer = new Event::MockTimer(dispatcher.get());
++    Event::MockTimer* timer = new Event::MockTimer(dispatcher.get());
+ 
+-    auto file_event = std::make_unique<NiceMock<Event::MockFileEvent>>();
+-    EXPECT_CALL(*dispatcher, createFileEvent_(0, _, _, _)).WillOnce(Return(file_event.release()));
++    NiceMock<Event::MockFileEvent>* file_event = new NiceMock<Event::MockFileEvent>;
++    EXPECT_CALL(*dispatcher, createFileEvent_(0, _, _, _))
++        .WillOnce(DoAll(SaveArg<1>(&file_ready_cb_), Return(file_event)));
+ 
+     auto transport_socket = std::make_unique<NiceMock<MockTransportSocket>>();
+-    EXPECT_CALL(*transport_socket, canFlushClose()).WillOnce(Return(true));
++    EXPECT_CALL(*transport_socket, canFlushClose()).WillRepeatedly(Return(true));
+ 
+-    return ConnectionMocks{std::move(dispatcher), timer, std::move(transport_socket)};
++    return ConnectionMocks{std::move(dispatcher), timer, std::move(transport_socket), file_event,
++                           &file_ready_cb_};
+   }
+ 
++  Event::FileReadyCb file_ready_cb_;
+   Event::SimulatedTimeSystem time_system_;
+   Api::ApiPtr api_;
+   Event::DispatcherPtr dispatcher_;
+@@ -987,41 +992,6 @@ TEST_P(ConnectionImplTest, FlushWriteCloseTest) {
+   dispatcher_->run(Event::Dispatcher::RunType::Block);
+ }
+ 
+-// Test that a FlushWrite close will create and enable a timer which closes the connection when
+-// triggered.
+-TEST_P(ConnectionImplTest, FlushWriteCloseTimeoutTest) {
+-  ConnectionMocks mocks = createConnectionMocks();
+-  IoHandlePtr io_handle = std::make_unique<IoSocketHandleImpl>(0);
+-  auto server_connection = std::make_unique<Network::ConnectionImpl>(
+-      *mocks.dispatcher,
+-      std::make_unique<ConnectionSocketImpl>(std::move(io_handle), nullptr, nullptr),
+-      std::move(mocks.transport_socket), true);
+-
+-  InSequence s1;
+-
+-  // Enable delayed connection close processing by setting a non-zero timeout value. The actual
+-  // value (> 0) doesn't matter since the callback is triggered below.
+-  server_connection->setDelayedCloseTimeout(std::chrono::milliseconds(100));
+-
+-  NiceMockConnectionStats stats;
+-  server_connection->setConnectionStats(stats.toBufferStats());
+-
+-  Buffer::OwnedImpl data("data");
+-  server_connection->write(data, false);
+-
+-  // Data is pending in the write buffer, which will trigger the FlushWrite close to go into delayed
+-  // close processing.
+-  EXPECT_CALL(*mocks.timer, enableTimer(_)).Times(1);
+-  server_connection->close(ConnectionCloseType::FlushWrite);
+-
+-  EXPECT_CALL(stats.delayed_close_timeouts_, inc()).Times(1);
+-  // Since the callback is being invoked manually, disableTimer() will be called when the connection
+-  // is closed by the callback.
+-  EXPECT_CALL(*mocks.timer, disableTimer()).Times(1);
+-  // Issue the delayed close callback to ensure connection is closed.
+-  mocks.timer->callback_();
+-}
+-
+ // Test that a FlushWriteAndDelay close causes Envoy to flush the write and wait for the client/peer
+ // to close (until a configured timeout which is not expected to trigger in this test).
+ TEST_P(ConnectionImplTest, FlushWriteAndDelayCloseTest) {
+@@ -1106,6 +1076,89 @@ TEST_P(ConnectionImplTest, FlushWriteAndDelayCloseTimerTriggerTest) {
+   dispatcher_->run(Event::Dispatcher::RunType::Block);
+ }
+ 
++// Test that a close(FlushWrite) after a delayed close timer has been enabled via
++// close(FlushWriteAndDelay) will trigger a socket close after the flush is complete.
++TEST_P(ConnectionImplTest, FlushWriteAfterFlushWriteAndDelayWithPendingWrite) {
++  setUpBasicConnection();
++  connect();
++
++  InSequence s1;
++  // The actual timeout is insignificant, we just need to enable delayed close processing by
++  // setting it to > 0.
++  server_connection_->setDelayedCloseTimeout(std::chrono::milliseconds(50));
++
++  std::shared_ptr<MockReadFilter> client_read_filter(new NiceMock<MockReadFilter>());
++  client_connection_->addReadFilter(client_read_filter);
++  NiceMockConnectionStats stats;
++  server_connection_->setConnectionStats(stats.toBufferStats());
++
++  Buffer::OwnedImpl data("Connection: Close");
++  server_connection_->write(data, false);
++
++  time_system_.setMonotonicTime(std::chrono::milliseconds(0));
++
++  // The delayed close timer will be enabled by this call. Data in the write buffer hasn't been
++  // flushed yet since the dispatcher has not run.
++  server_connection_->close(ConnectionCloseType::FlushWriteAndDelay);
++  // The timer won't be disabled but this close() overwrites the delayed close state such that a
++  // successful flush will immediately close the socket.
++  server_connection_->close(ConnectionCloseType::FlushWrite);
++
++  // The socket close will happen as a result of the write flush and not due to the delayed close
++  // timer triggering.
++  EXPECT_CALL(stats.delayed_close_timeouts_, inc()).Times(0);
++  EXPECT_CALL(server_callbacks_, onEvent(ConnectionEvent::LocalClose)).Times(1);
++  EXPECT_CALL(*client_read_filter, onData(BufferStringEqual("Connection: Close"), false))
++      .Times(1)
++      .WillOnce(InvokeWithoutArgs([&]() -> FilterStatus {
++        time_system_.setMonotonicTime(std::chrono::milliseconds(100));
++        return FilterStatus::StopIteration;
++      }));
++  EXPECT_CALL(client_callbacks_, onEvent(ConnectionEvent::RemoteClose))
++      .Times(1)
++      .WillOnce(Invoke([&](Network::ConnectionEvent) -> void { dispatcher_->exit(); }));
++  dispatcher_->run(Event::Dispatcher::RunType::Block);
++}
++
++// Test that a close(FlushWrite) triggers an immediate close when a delayed close timer has been
++// enabled via a prior close(FlushWriteAndDelay).
++TEST_P(ConnectionImplTest, FlushWriteAfterFlushWriteAndDelayWithoutPendingWrite) {
++  setUpBasicConnection();
++  connect();
++
++  InSequence s1;
++  // The actual timeout is insignificant, we just need to enable delayed close processing by
++  // setting it to > 0.
++  server_connection_->setDelayedCloseTimeout(std::chrono::milliseconds(50));
++
++  std::shared_ptr<MockReadFilter> client_read_filter(new NiceMock<MockReadFilter>());
++  client_connection_->addReadFilter(client_read_filter);
++  NiceMockConnectionStats stats;
++  server_connection_->setConnectionStats(stats.toBufferStats());
++
++  Buffer::OwnedImpl data("Connection: Close");
++  server_connection_->write(data, false);
++
++  server_connection_->close(ConnectionCloseType::FlushWriteAndDelay);
++  EXPECT_CALL(*client_read_filter, onData(BufferStringEqual("Connection: Close"), false))
++      .Times(1)
++      .WillOnce(InvokeWithoutArgs([&]() -> FilterStatus {
++        dispatcher_->exit();
++        return FilterStatus::StopIteration;
++      }));
++  dispatcher_->run(Event::Dispatcher::RunType::Block);
++
++  // The write buffer has been flushed and a delayed close timer has been set. The socket close will
++  // happen as part of the close() since the timeout is no longer required.
++  EXPECT_CALL(server_callbacks_, onEvent(ConnectionEvent::LocalClose)).Times(1);
++  server_connection_->close(ConnectionCloseType::FlushWrite);
++  EXPECT_CALL(stats.delayed_close_timeouts_, inc()).Times(0);
++  EXPECT_CALL(client_callbacks_, onEvent(ConnectionEvent::RemoteClose))
++      .Times(1)
++      .WillOnce(Invoke([&](Network::ConnectionEvent) -> void { dispatcher_->exit(); }));
++  dispatcher_->run(Event::Dispatcher::RunType::Block);
++}
++
+ // Test that delayed close processing can be disabled by setting the delayed close timeout interval
+ // to 0.
+ TEST_P(ConnectionImplTest, FlushWriteAndDelayConfigDisabledTest) {
+@@ -1144,27 +1197,90 @@ TEST_P(ConnectionImplTest, FlushWriteAndDelayConfigDisabledTest) {
+   server_connection->close(ConnectionCloseType::NoFlush);
+ }
+ 
++// Test that the delayed close timer is reset while write flushes are happening when a connection is
++// in delayed close mode.
++TEST_P(ConnectionImplTest, DelayedCloseTimerResetWithPendingWriteBufferFlushes) {
++  ConnectionMocks mocks = createConnectionMocks();
++  MockTransportSocket* transport_socket = mocks.transport_socket_.get();
++  IoHandlePtr io_handle = std::make_unique<IoSocketHandleImpl>(0);
++  auto server_connection = std::make_unique<Network::ConnectionImpl>(
++      *mocks.dispatcher_,
++      std::make_unique<ConnectionSocketImpl>(std::move(io_handle), nullptr, nullptr),
++      std::move(mocks.transport_socket_), true);
++
++  InSequence s1;
++  // The actual timeout is insignificant, we just need to enable delayed close processing by
++  // setting it to > 0.
++  auto timeout = std::chrono::milliseconds(100);
++  server_connection->setDelayedCloseTimeout(timeout);
++
++  EXPECT_CALL(*mocks.file_event_, activate(Event::FileReadyType::Write))
++      .WillOnce(Invoke(*mocks.file_ready_cb_));
++  EXPECT_CALL(*transport_socket, doWrite(BufferStringEqual("data"), _))
++      .WillOnce(Invoke([&](Buffer::Instance&, bool) -> IoResult {
++        // Do not drain the buffer and return 0 bytes processed to simulate backpressure.
++        return IoResult{PostIoAction::KeepOpen, 0, false};
++      }));
++  Buffer::OwnedImpl data("data");
++  server_connection->write(data, false);
++
++  EXPECT_CALL(*mocks.timer_, enableTimer(timeout)).Times(1);
++  server_connection->close(ConnectionCloseType::FlushWriteAndDelay);
++
++  // The write ready event cb (ConnectionImpl::onWriteReady()) will reset the timer to its original
++  // timeout value to avoid triggering while the write buffer is being actively flushed.
++  EXPECT_CALL(*transport_socket, doWrite(BufferStringEqual("data"), _))
++      .WillOnce(Invoke([&](Buffer::Instance&, bool) -> IoResult {
++        // Partial flush.
++        return IoResult{PostIoAction::KeepOpen, 1, false};
++      }));
++  EXPECT_CALL(*mocks.timer_, enableTimer(timeout)).Times(1);
++  (*mocks.file_ready_cb_)(Event::FileReadyType::Write);
++
++  EXPECT_CALL(*transport_socket, doWrite(BufferStringEqual("data"), _))
++      .WillOnce(Invoke([&](Buffer::Instance& buffer, bool) -> IoResult {
++        // Flush the entire buffer.
++        buffer.drain(buffer.length());
++        return IoResult{PostIoAction::KeepOpen, buffer.length(), false};
++      }));
++  EXPECT_CALL(*mocks.timer_, enableTimer(timeout)).Times(1);
++  (*mocks.file_ready_cb_)(Event::FileReadyType::Write);
++
++  // Force the delayed close timeout to trigger so the connection is cleaned up.
++  mocks.timer_->callback_();
++}
++
+ // Test that tearing down the connection will disable the delayed close timer.
+ TEST_P(ConnectionImplTest, DelayedCloseTimeoutDisableOnSocketClose) {
+   ConnectionMocks mocks = createConnectionMocks();
++  MockTransportSocket* transport_socket = mocks.transport_socket_.get();
+   IoHandlePtr io_handle = std::make_unique<IoSocketHandleImpl>(0);
+   auto server_connection = std::make_unique<Network::ConnectionImpl>(
+-      *mocks.dispatcher,
++      *mocks.dispatcher_,
+       std::make_unique<ConnectionSocketImpl>(std::move(io_handle), nullptr, nullptr),
+-      std::move(mocks.transport_socket), true);
++      std::move(mocks.transport_socket_), true);
+ 
+   InSequence s1;
+ 
+-  // The actual timeout is insignificant, we just need to enable delayed close processing by setting
+-  // it to > 0.
++  // The actual timeout is insignificant, we just need to enable delayed close processing by
++  // setting it to > 0.
+   server_connection->setDelayedCloseTimeout(std::chrono::milliseconds(100));
+ 
+   Buffer::OwnedImpl data("data");
++  EXPECT_CALL(*mocks.file_event_, activate(Event::FileReadyType::Write))
++      .WillOnce(Invoke(*mocks.file_ready_cb_));
++  // The buffer must be drained when write() is called on the connection to allow the close() to
++  // enable the timer.
++  EXPECT_CALL(*transport_socket, doWrite(BufferStringEqual("data"), _))
++      .WillOnce(Invoke([&](Buffer::Instance& buffer, bool) -> IoResult {
++        buffer.drain(buffer.length());
++        return IoResult{PostIoAction::KeepOpen, buffer.length(), false};
++      }));
+   server_connection->write(data, false);
+-  EXPECT_CALL(*mocks.timer, enableTimer(_)).Times(1);
++  EXPECT_CALL(*mocks.timer_, enableTimer(_)).Times(1);
+   // Enable the delayed close timer.
+   server_connection->close(ConnectionCloseType::FlushWriteAndDelay);
+-  EXPECT_CALL(*mocks.timer, disableTimer()).Times(1);
++  EXPECT_CALL(*mocks.timer_, disableTimer()).Times(1);
+   // This close() will call closeSocket(), which should disable the timer to avoid triggering it
+   // after the connection's data structures have been reset.
+   server_connection->close(ConnectionCloseType::NoFlush);
+@@ -1173,11 +1289,12 @@ TEST_P(ConnectionImplTest, DelayedCloseTimeoutDisableOnSocketClose) {
+ // Test that the delayed close timeout callback is resilient to connection teardown edge cases.
+ TEST_P(ConnectionImplTest, DelayedCloseTimeoutNullStats) {
+   ConnectionMocks mocks = createConnectionMocks();
++  MockTransportSocket* transport_socket = mocks.transport_socket_.get();
+   IoHandlePtr io_handle = std::make_unique<IoSocketHandleImpl>(0);
+   auto server_connection = std::make_unique<Network::ConnectionImpl>(
+-      *mocks.dispatcher,
++      *mocks.dispatcher_,
+       std::make_unique<ConnectionSocketImpl>(std::move(io_handle), nullptr, nullptr),
+-      std::move(mocks.transport_socket), true);
++      std::move(mocks.transport_socket_), true);
+ 
+   InSequence s1;
+ 
+@@ -1190,14 +1307,24 @@ TEST_P(ConnectionImplTest, DelayedCloseTimeoutNullStats) {
+   // that edge case.
+ 
+   Buffer::OwnedImpl data("data");
++  EXPECT_CALL(*mocks.file_event_, activate(Event::FileReadyType::Write))
++      .WillOnce(Invoke(*mocks.file_ready_cb_));
++  // The buffer must be drained when write() is called on the connection to allow the close() to
++  // enable the timer.
++  EXPECT_CALL(*transport_socket, doWrite(BufferStringEqual("data"), _))
++      .WillOnce(Invoke([&](Buffer::Instance& buffer, bool) -> IoResult {
++        buffer.drain(buffer.length());
++        return IoResult{PostIoAction::KeepOpen, buffer.length(), false};
++      }));
+   server_connection->write(data, false);
+ 
+-  EXPECT_CALL(*mocks.timer, enableTimer(_)).Times(1);
++  EXPECT_CALL(*mocks.timer_, enableTimer(_)).Times(1);
+   server_connection->close(ConnectionCloseType::FlushWriteAndDelay);
+-  EXPECT_CALL(*mocks.timer, disableTimer()).Times(1);
++  EXPECT_CALL(*mocks.timer_, disableTimer()).Times(1);
+   // Copy the callback since mocks.timer will be freed when closeSocket() is called.
+-  Event::TimerCb callback = mocks.timer->callback_;
+-  // The following close() will call closeSocket() and reset internal data structures such as stats.
++  Event::TimerCb callback = mocks.timer_->callback_;
++  // The following close() will call closeSocket() and reset internal data structures such as
++  // stats.
+   server_connection->close(ConnectionCloseType::NoFlush);
+   // Verify the onDelayedCloseTimeout() callback is resilient to the post closeSocket(), pre
+   // destruction state. This should not actually happen due to the timeout disablement in
+diff --git a/test/integration/tcp_proxy_integration_test.cc b/test/integration/tcp_proxy_integration_test.cc
+index e56bc49..f695a50 100644
+--- a/test/integration/tcp_proxy_integration_test.cc
++++ b/test/integration/tcp_proxy_integration_test.cc
+@@ -189,7 +189,7 @@ TEST_P(TcpProxyIntegrationTest, TcpProxyUpstreamFlush) {
+   tcp_client->waitForHalfClose();
+ 
+   EXPECT_EQ(test_server_->counter("tcp.tcp_stats.upstream_flush_total")->value(), 1);
+-  EXPECT_EQ(test_server_->gauge("tcp.tcp_stats.upstream_flush_active")->value(), 0);
++  test_server_->waitForGaugeEq("tcp.tcp_stats.upstream_flush_active", 0);
+ }
+ 
+ // Test that Envoy doesn't crash or assert when shutting down with an upstream flush active
+diff --git a/tools/spelling_dictionary.txt b/tools/spelling_dictionary.txt
+index 06b1754..b3d824f 100644
+--- a/tools/spelling_dictionary.txt
++++ b/tools/spelling_dictionary.txt
+@@ -40,6 +40,7 @@ CTX
+ CTXs
+ CVC
+ CX
++CloseAterFlush
+ DCHECK
+ DER
+ DESC
+-- 
+1.8.3.1
+
