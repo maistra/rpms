@@ -1,0 +1,229 @@
+From a9c6001d25fca8bb63f1f52665bf3d5f57a40c3d Mon Sep 17 00:00:00 2001
+From: Matt Klein <mklein@lyft.com>
+Date: Tue, 11 Jun 2019 07:51:12 -0700
+Subject: [PATCH] http: fix 2 cases where HCM/codec stream state diverge
+ (#7212)
+
+This change fixes two different cases in which it becomes possible
+for the codec and the HCM to have differing views of active streams.
+This can lead to crashes when the codec tries to notify the HCM about
+stream state changes.
+
+Fixes https://github.com/envoyproxy/envoy/issues/7193
+Fixes https://github.com/envoyproxy/envoy/issues/6872
+
+Signed-off-by: Matt Klein <mklein@lyft.com>
+Signed-off-by: Piotr Sikora <piotrsikora@google.com>
+---
+ source/common/http/conn_manager_impl.cc    | 20 +++++++++++--
+ source/common/http/conn_manager_impl.h     | 10 +++++--
+ source/common/http/http2/codec_impl.cc     |  1 +
+ test/common/http/conn_manager_impl_test.cc | 48 ++++++++++++++++++++++++++++++
+ test/integration/http2_integration_test.cc | 17 +++++++++++
+ test/integration/http_integration.h        |  1 +
+ 6 files changed, 91 insertions(+), 6 deletions(-)
+
+diff --git a/source/common/http/conn_manager_impl.cc b/source/common/http/conn_manager_impl.cc
+index 1fe1007..5dfd5c1 100644
+--- a/source/common/http/conn_manager_impl.cc
++++ b/source/common/http/conn_manager_impl.cc
+@@ -180,10 +180,12 @@ void ConnectionManagerImpl::doEndStream(ActiveStream& stream) {
+   // explicitly nulls out response_encoder to avoid the downstream being notified of the
+   // Envoy-internal stream instance being ended.
+   if (stream.response_encoder_ != nullptr &&
+-      (!stream.state_.remote_complete_ || !stream.state_.local_complete_)) {
++      (!stream.state_.remote_complete_ || !stream.state_.codec_saw_local_complete_)) {
+     // Indicate local is complete at this point so that if we reset during a continuation, we don't
+     // raise further data or trailers.
++    ENVOY_STREAM_LOG(debug, "doEndStream() resetting stream", stream);
+     stream.state_.local_complete_ = true;
++    stream.state_.codec_saw_local_complete_ = true;
+     stream.response_encoder_->getStream().resetStream(StreamResetReason::LocalReset);
+     reset_stream = true;
+   }
+@@ -311,8 +313,17 @@ Network::FilterStatus ConnectionManagerImpl::onData(Buffer::Instance& data, bool
+ 
+ void ConnectionManagerImpl::resetAllStreams() {
+   while (!streams_.empty()) {
+-    // Mimic a downstream reset in this case.
+-    streams_.front()->onResetStream(StreamResetReason::ConnectionTermination, absl::string_view());
++    // Mimic a downstream reset in this case. We must also remove callbacks here. Though we are
++    // about to close the connection and will disable further reads, it is possible that flushing
++    // data out can cause stream callbacks to fire (e.g., low watermark callbacks).
++    //
++    // TODO(mattklein123): I tried to actually reset through the codec here, but ran into issues
++    // with nghttp2 state and being unhappy about sending reset frames after the connection had
++    // been terminated via GOAWAY. It might be possible to do something better here inside the h2
++    // codec but there are no easy answers and this seems simpler.
++    auto& stream = *streams_.front();
++    stream.response_encoder_->getStream().removeCallbacks(stream);
++    stream.onResetStream(StreamResetReason::ConnectionTermination, absl::string_view());
+   }
+ }
+ 
+@@ -1493,6 +1504,8 @@ void ConnectionManagerImpl::ActiveStream::encodeTrailers(ActiveStreamEncoderFilt
+ 
+ void ConnectionManagerImpl::ActiveStream::maybeEndEncode(bool end_stream) {
+   if (end_stream) {
++    ASSERT(!state_.codec_saw_local_complete_);
++    state_.codec_saw_local_complete_ = true;
+     stream_info_.onLastDownstreamTxByteSent();
+     request_response_timespan_->complete();
+     connection_manager_.doEndStream(*this);
+@@ -1518,6 +1531,7 @@ void ConnectionManagerImpl::ActiveStream::onResetStream(StreamResetReason, absl:
+   //       2) The codec TX a codec level reset
+   //       3) The codec RX a reset
+   //       If we need to differentiate we need to do it inside the codec. Can start with this.
++  ENVOY_STREAM_LOG(debug, "stream reset", *this);
+   connection_manager_.stats_.named_.downstream_rq_rx_reset_.inc();
+   connection_manager_.doDeferredStreamDestroy(*this);
+ }
+diff --git a/source/common/http/conn_manager_impl.h b/source/common/http/conn_manager_impl.h
+index a968d11..fb42d52 100644
+--- a/source/common/http/conn_manager_impl.h
++++ b/source/common/http/conn_manager_impl.h
+@@ -439,8 +439,8 @@ private:
+     // All state for the stream. Put here for readability.
+     struct State {
+       State()
+-          : remote_complete_(false), local_complete_(false), saw_connection_close_(false),
+-            successful_upgrade_(false), created_filter_chain_(false),
++          : remote_complete_(false), local_complete_(false), codec_saw_local_complete_(false),
++            saw_connection_close_(false), successful_upgrade_(false), created_filter_chain_(false),
+             is_internally_created_(false) {}
+ 
+       uint32_t filter_call_state_{0};
+@@ -451,7 +451,11 @@ private:
+       bool decoder_filters_streaming_{true};
+       bool destroyed_{false};
+       bool remote_complete_ : 1;
+-      bool local_complete_ : 1;
++      bool local_complete_ : 1; // This indicates that local is complete prior to filter processing.
++                                // A filter can still stop the stream from being complete as seen
++                                // by the codec.
++      bool codec_saw_local_complete_ : 1; // This indicates that local is complete as written all
++                                          // the way through to the codec.
+       bool saw_connection_close_ : 1;
+       bool successful_upgrade_ : 1;
+       bool created_filter_chain_ : 1;
+diff --git a/source/common/http/http2/codec_impl.cc b/source/common/http/http2/codec_impl.cc
+index c1b4297..3ae8107 100644
+--- a/source/common/http/http2/codec_impl.cc
++++ b/source/common/http/http2/codec_impl.cc
+@@ -521,6 +521,7 @@ int ConnectionImpl::onFrameSend(const nghttp2_frame* frame) {
+   ENVOY_CONN_LOG(trace, "sent frame type={}", connection_, static_cast<uint64_t>(frame->hd.type));
+   switch (frame->hd.type) {
+   case NGHTTP2_GOAWAY: {
++    ENVOY_CONN_LOG(debug, "sent goaway code={}", connection_, frame->goaway.error_code);
+     if (frame->goaway.error_code != NGHTTP2_NO_ERROR) {
+       return NGHTTP2_ERR_CALLBACK_FAILURE;
+     }
+diff --git a/test/common/http/conn_manager_impl_test.cc b/test/common/http/conn_manager_impl_test.cc
+index a282fc8..517570f 100644
+--- a/test/common/http/conn_manager_impl_test.cc
++++ b/test/common/http/conn_manager_impl_test.cc
+@@ -2220,6 +2220,7 @@ TEST_F(HttpConnectionManagerImplTest, DownstreamProtocolError) {
+     throw CodecProtocolException("protocol error");
+   }));
+ 
++  EXPECT_CALL(response_encoder_.stream_, removeCallbacks(_));
+   EXPECT_CALL(filter_factory_, createFilterChain(_)).Times(0);
+ 
+   // A protocol exception should result in reset of the streams followed by a remote or local close
+@@ -3260,6 +3261,53 @@ TEST_F(HttpConnectionManagerImplTest, FilterHeadReply) {
+   conn_manager_->onData(fake_input, false);
+ }
+ 
++// Verify that if an encoded stream has been ended, but gets stopped by a filter chain, we end
++// up resetting the stream in the doEndStream() path (e.g., via filter reset due to timeout, etc.),
++// we emit a reset to the codec.
++TEST_F(HttpConnectionManagerImplTest, ResetWithStoppedFilter) {
++  InSequence s;
++  setup(false, "");
++
++  EXPECT_CALL(*codec_, dispatch(_)).WillOnce(Invoke([&](Buffer::Instance& data) -> void {
++    StreamDecoder* decoder = &conn_manager_->newStream(response_encoder_);
++    HeaderMapPtr headers{
++        new TestHeaderMapImpl{{":authority", "host"}, {":path", "/"}, {":method", "GET"}}};
++    decoder->decodeHeaders(std::move(headers), true);
++    data.drain(4);
++  }));
++
++  setupFilterChain(1, 1);
++
++  EXPECT_CALL(*decoder_filters_[0], decodeHeaders(_, true))
++      .WillOnce(InvokeWithoutArgs([&]() -> FilterHeadersStatus {
++        decoder_filters_[0]->callbacks_->sendLocalReply(Code::BadRequest, "Bad request", nullptr,
++                                                        absl::nullopt);
++        return FilterHeadersStatus::Continue;
++      }));
++
++  EXPECT_CALL(*encoder_filters_[0], encodeHeaders(_, false))
++      .WillOnce(Invoke([&](HeaderMap& headers, bool) -> FilterHeadersStatus {
++        EXPECT_EQ("11", headers.ContentLength()->value().getStringView());
++        return FilterHeadersStatus::Continue;
++      }));
++  EXPECT_CALL(response_encoder_, encodeHeaders(_, false));
++  EXPECT_CALL(*encoder_filters_[0], encodeData(_, true))
++      .WillOnce(Invoke([&](Buffer::Instance&, bool) -> FilterDataStatus {
++        return FilterDataStatus::StopIterationAndBuffer;
++      }));
++
++  EXPECT_CALL(*encoder_filters_[0], encodeComplete());
++  EXPECT_CALL(*decoder_filters_[0], decodeComplete());
++
++  // Kick off the incoming data.
++  Buffer::OwnedImpl fake_input("1234");
++  conn_manager_->onData(fake_input, false);
++
++  EXPECT_CALL(response_encoder_.stream_, resetStream(_));
++  expectOnDestroy();
++  encoder_filters_[0]->callbacks_->resetStream();
++}
++
+ TEST_F(HttpConnectionManagerImplTest, FilterContinueAndEndStreamHeaders) {
+   InSequence s;
+   setup(false, "");
+diff --git a/test/integration/http2_integration_test.cc b/test/integration/http2_integration_test.cc
+index c8275e7..d210698 100644
+--- a/test/integration/http2_integration_test.cc
++++ b/test/integration/http2_integration_test.cc
+@@ -430,6 +430,23 @@ TEST_P(Http2IntegrationTest, GrpcRouterNotFound) {
+ 
+ TEST_P(Http2IntegrationTest, GrpcRetry) { testGrpcRetry(); }
+ 
++// Verify the case where there is an HTTP/2 codec/protocol error with an active stream.
++TEST_P(Http2IntegrationTest, CodecErrorAfterStreamStart) {
++  initialize();
++  codec_client_ = makeHttpConnection(lookupPort("http"));
++
++  // Sends a request.
++  auto response = codec_client_->makeRequestWithBody(default_request_headers_, 10);
++  waitForNextUpstreamRequest();
++
++  // Send bogus raw data on the connection.
++  Buffer::OwnedImpl bogus_data("some really bogus data");
++  codec_client_->rawConnection().write(bogus_data, false);
++
++  // Verifies reset is received.
++  response->waitForReset();
++}
++
+ TEST_P(Http2IntegrationTest, BadMagic) {
+   initialize();
+   Buffer::OwnedImpl buffer("hello");
+diff --git a/test/integration/http_integration.h b/test/integration/http_integration.h
+index 3fb328a..7a0de1e 100644
+--- a/test/integration/http_integration.h
++++ b/test/integration/http_integration.h
+@@ -39,6 +39,7 @@ public:
+   bool waitForDisconnect(std::chrono::milliseconds time_to_wait = std::chrono::milliseconds(0));
+   Network::ClientConnection* connection() const { return connection_.get(); }
+   Network::ConnectionEvent last_connection_event() const { return last_connection_event_; }
++  Network::Connection& rawConnection() { return *connection_; }
+ 
+ private:
+   struct ConnectionCallbacks : public Network::ConnectionCallbacks {
+-- 
+1.8.3.1
+
