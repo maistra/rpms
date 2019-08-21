@@ -148,6 +148,16 @@ function replace_python() {
   set_python_rules_date
 }
 
+remove_rpath() {
+  pushd ${CACHE_DIR}
+    find . -type f -name "CROSSTOOL" -exec sed -i "s|flag_group {|flag_group {\n        expand_if_all_available: 'runtime_library_search_directories'\n        flag: '%{runtime_library_search_directories}'|g" {} +
+    find . -type f -name "CROSSTOOL" -exec touch -m -t 210012120101 {} +
+
+    find . -type f -name "CROSSTOOL.tpl" -exec sed -i "s|flag_group {|flag_group {\n        expand_if_all_available: 'runtime_library_search_directories'\n        flag: '%{runtime_library_search_directories}'|g" {} +
+    find . -type f -name "CROSSTOOL.tpl" -exec touch -m -t 210012120101 {} +
+  popd
+}
+
 function fetch() {
   if [ ! -d "${PROXY_FETCH_DIR}" ]; then
     mkdir -p ${PROXY_FETCH_DIR}
@@ -285,6 +295,8 @@ function replace_ssl() {
     popd
 
     rm -rf ${CACHE_DIR}/base/external/*boringssl*
+
+    remove_rpath
 
     # re-fetch for updated dependencies
     pushd ${PROXY_FETCH_DIR}/proxy
