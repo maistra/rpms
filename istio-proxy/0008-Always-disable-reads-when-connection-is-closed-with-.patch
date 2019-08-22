@@ -1,0 +1,215 @@
+From 4ff108159bef32b00763653d307a14626744f255 Mon Sep 17 00:00:00 2001
+From: yanavlasov <yavlasov@google.com>
+Date: Wed, 31 Jul 2019 16:14:34 -0400
+Subject: [PATCH] Always disable reads when connection is closed with the
+ FlushWriteAndDelay (#16)
+
+Signed-off-by: Yan Avlasov <yavlasov@google.com>
+Signed-off-by: Piotr Sikora <piotrsikora@google.com>
+---
+ source/common/http/conn_manager_impl.cc     | 20 ++++++---------
+ source/common/http/conn_manager_impl.h      |  2 +-
+ source/common/network/connection_impl.cc    |  2 ++
+ test/common/http/conn_manager_impl_test.cc  |  3 ++-
+ test/common/network/connection_impl_test.cc |  5 ++++
+ test/integration/http2_integration_test.cc  | 38 +++++++++++++++++++----------
+ 6 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/source/common/http/conn_manager_impl.cc b/source/common/http/conn_manager_impl.cc
+index 67040f9..659dd7e 100644
+--- a/source/common/http/conn_manager_impl.cc
++++ b/source/common/http/conn_manager_impl.cc
+@@ -256,17 +256,16 @@ StreamDecoder& ConnectionManagerImpl::newStream(StreamEncoder& response_encoder,
+   return **streams_.begin();
+ }
+ 
+-void ConnectionManagerImpl::handleCodecException(const char* error,
+-                                                 Network::ConnectionCloseType close_type) {
++void ConnectionManagerImpl::handleCodecException(const char* error) {
+   ENVOY_CONN_LOG(debug, "dispatch error: {}", read_callbacks_->connection(), error);
+ 
+-  // In the protocol error case, we need to reset all streams now. If the close_type is
+-  // FlushWriteAndDelay, the connection might stick around long enough for a pending stream to come
+-  // back and try to encode. In other cases it avoids needless processing of upstream responses when
+-  // downstream connection is closed.
++  // In the protocol error case, we need to reset all streams now. The connection might stick around
++  // long enough for a pending stream to come back and try to encode.
+   resetAllStreams();
+ 
+-  read_callbacks_->connection().close(close_type);
++  // HTTP/1.1 codec has already sent a 400 response if possible. HTTP/2 codec has already sent
++  // GOAWAY.
++  read_callbacks_->connection().close(Network::ConnectionCloseType::FlushWriteAndDelay);
+ }
+ 
+ Network::FilterStatus ConnectionManagerImpl::onData(Buffer::Instance& data, bool) {
+@@ -288,14 +287,11 @@ Network::FilterStatus ConnectionManagerImpl::onData(Buffer::Instance& data, bool
+     try {
+       codec_->dispatch(data);
+     } catch (const FrameFloodException& e) {
+-      // Abortively close flooded connections
+-      handleCodecException(e.what(), Network::ConnectionCloseType::NoFlush);
++      handleCodecException(e.what());
+       return Network::FilterStatus::StopIteration;
+     } catch (const CodecProtocolException& e) {
+       stats_.named_.downstream_cx_protocol_error_.inc();
+-      // HTTP/1.1 codec has already sent a 400 response if possible. HTTP/2 codec has already sent
+-      // GOAWAY.
+-      handleCodecException(e.what(), Network::ConnectionCloseType::FlushWriteAndDelay);
++      handleCodecException(e.what());
+       return Network::FilterStatus::StopIteration;
+     }
+ 
+diff --git a/source/common/http/conn_manager_impl.h b/source/common/http/conn_manager_impl.h
+index 5525c7a..a991f05 100644
+--- a/source/common/http/conn_manager_impl.h
++++ b/source/common/http/conn_manager_impl.h
+@@ -544,7 +544,7 @@ private:
+   void onDrainTimeout();
+   void startDrainSequence();
+   Tracing::HttpTracer& tracer() { return http_context_.tracer(); }
+-  void handleCodecException(const char* error, Network::ConnectionCloseType close_type);
++  void handleCodecException(const char* error);
+ 
+   enum class DrainState { NotDraining, Draining, Closing };
+ 
+diff --git a/source/common/network/connection_impl.cc b/source/common/network/connection_impl.cc
+index a9b109e..9ef2588 100644
+--- a/source/common/network/connection_impl.cc
++++ b/source/common/network/connection_impl.cc
+@@ -118,6 +118,8 @@ void ConnectionImpl::close(ConnectionCloseType type) {
+       if (!inDelayedClose()) {
+         initializeDelayedCloseTimer();
+         delayed_close_state_ = DelayedCloseState::CloseAfterFlushAndWait;
++        // Monitor for the peer closing the connection.
++        file_event_->setEnabled(enable_half_close_ ? 0 : Event::FileReadyType::Closed);
+       }
+     } else {
+       closeSocket(ConnectionEvent::LocalClose);
+diff --git a/test/common/http/conn_manager_impl_test.cc b/test/common/http/conn_manager_impl_test.cc
+index 0a6e4f1..889da9e 100644
+--- a/test/common/http/conn_manager_impl_test.cc
++++ b/test/common/http/conn_manager_impl_test.cc
+@@ -2248,7 +2248,8 @@ TEST_F(HttpConnectionManagerImplTest, FrameFloodError) {
+   EXPECT_CALL(filter_factory_, createFilterChain(_)).Times(0);
+ 
+   // FrameFloodException should result in reset of the streams followed by abortive close.
+-  EXPECT_CALL(filter_callbacks_.connection_, close(Network::ConnectionCloseType::NoFlush));
++  EXPECT_CALL(filter_callbacks_.connection_,
++              close(Network::ConnectionCloseType::FlushWriteAndDelay));
+ 
+   // Kick off the incoming data.
+   Buffer::OwnedImpl fake_input("1234");
+diff --git a/test/common/network/connection_impl_test.cc b/test/common/network/connection_impl_test.cc
+index 8ddfb9f..d93604d 100644
+--- a/test/common/network/connection_impl_test.cc
++++ b/test/common/network/connection_impl_test.cc
+@@ -1734,6 +1734,7 @@ TEST_F(PostCloseConnectionImplTest, ReadAfterCloseFlushWriteDelayIgnored) {
+ 
+   // Delayed connection close.
+   EXPECT_CALL(dispatcher_, createTimer_(_));
++  EXPECT_CALL(*file_event_, setEnabled(Event::FileReadyType::Closed));
+   connection_->close(ConnectionCloseType::FlushWriteAndDelay);
+ 
+   // Read event, doRead() happens on connection but no filter onData().
+@@ -1758,6 +1759,10 @@ TEST_F(PostCloseConnectionImplTest, ReadAfterCloseFlushWriteDelayIgnoredWithWrit
+ 
+   // Delayed connection close.
+   EXPECT_CALL(dispatcher_, createTimer_(_));
++  // With half-close semantics enabled we will not wait for early close notification.
++  // See the `Envoy::Network::ConnectionImpl::readDisable()' method for more details.
++  EXPECT_CALL(*file_event_, setEnabled(0));
++  connection_->enableHalfClose(true);
+   connection_->close(ConnectionCloseType::FlushWriteAndDelay);
+ 
+   // Read event, doRead() happens on connection but no filter onData().
+diff --git a/test/integration/http2_integration_test.cc b/test/integration/http2_integration_test.cc
+index d5c1c7e..7297f54 100644
+--- a/test/integration/http2_integration_test.cc
++++ b/test/integration/http2_integration_test.cc
+@@ -1118,8 +1118,7 @@ void Http2FloodMitigationTest::floodServer(const Http2Frame& frame, const std::s
+ 
+   EXPECT_LE(total_bytes_sent, TransmitThreshold) << "Flood mitigation is broken.";
+   EXPECT_EQ(1, test_server_->counter(flood_stat)->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
+@@ -1141,9 +1140,10 @@ void Http2FloodMitigationTest::floodServer(absl::string_view host, absl::string_
+     total_bytes_sent += request.size();
+   }
+   EXPECT_LE(total_bytes_sent, TransmitThreshold) << "Flood mitigation is broken.";
+-  EXPECT_EQ(1, test_server_->counter(flood_stat)->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  if (!flood_stat.empty()) {
++    EXPECT_EQ(1, test_server_->counter(flood_stat)->value());
++  }
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
+@@ -1206,11 +1206,26 @@ TEST_P(Http2FloodMitigationTest, RST_STREAM) {
+   }
+   EXPECT_LE(total_bytes_sent, TransmitThreshold) << "Flood mitigation is broken.";
+   EXPECT_EQ(1, test_server_->counter("http2.outbound_control_flood")->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
++// Verify that the server stop reading downstream connection on protocol error.
++TEST_P(Http2FloodMitigationTest, TooManyStreams) {
++  config_helper_.addConfigModifier(
++      [](envoy::config::filter::network::http_connection_manager::v2::HttpConnectionManager& hcm)
++          -> void {
++        hcm.mutable_http2_protocol_options()->mutable_max_concurrent_streams()->set_value(2);
++      });
++  autonomous_upstream_ = true;
++  beginSession();
++  fake_upstreams_[0]->set_allow_unexpected_disconnects(true);
++
++  // Exceed the number of streams allowed by the server. The server should stop reading from the
++  // client. Verify that the client was unable to stuff a lot of data into the server.
++  floodServer("host", "/test/long/url", Http2Frame::ResponseStatus::_200, "");
++}
++
+ TEST_P(Http2FloodMitigationTest, EmptyHeaders) {
+   config_helper_.addConfigModifier(
+       [&](envoy::config::filter::network::http_connection_manager::v2::HttpConnectionManager& hcm)
+@@ -1228,8 +1243,7 @@ TEST_P(Http2FloodMitigationTest, EmptyHeaders) {
+   tcp_client_->waitForDisconnect();
+ 
+   EXPECT_EQ(1, test_server_->counter("http2.inbound_empty_frames_flood")->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
+@@ -1248,8 +1262,7 @@ TEST_P(Http2FloodMitigationTest, EmptyHeadersContinuation) {
+   tcp_client_->waitForDisconnect();
+ 
+   EXPECT_EQ(1, test_server_->counter("http2.inbound_empty_frames_flood")->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
+@@ -1269,8 +1282,7 @@ TEST_P(Http2FloodMitigationTest, EmptyData) {
+   tcp_client_->waitForDisconnect();
+ 
+   EXPECT_EQ(1, test_server_->counter("http2.inbound_empty_frames_flood")->value());
+-  // Verify that connection was closed abortively
+-  EXPECT_EQ(0,
++  EXPECT_EQ(1,
+             test_server_->counter("http.config_test.downstream_cx_delayed_close_timeout")->value());
+ }
+ 
+-- 
+1.8.3.1
+

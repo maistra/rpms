@@ -377,9 +377,23 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
 
 }
 
+function add_patches() {
+  pushd ${CACHE_DIR}/base/external/envoy
+    git apply ${RPM_SOURCE_DIR}/0001-http-mitigate-delayed-close-timeout-race-with-connec.patch
+    git apply ${RPM_SOURCE_DIR}/0002-connection-don-t-pass-read-data-to-filters-when-in-d.patch
+    git apply ${RPM_SOURCE_DIR}/0003-util-add-Inline-storage-helper-class-and-use-it-in-a.patch
+    git apply ${RPM_SOURCE_DIR}/0004-http-fix-2-cases-where-HCM-codec-stream-state-diverg.patch
+    git apply ${RPM_SOURCE_DIR}/0005-http2-Limit-the-number-of-outbound-frames-9.patch
+    git apply ${RPM_SOURCE_DIR}/0006-http2-limit-the-number-of-inbound-frames.-20.patch
+    git apply ${RPM_SOURCE_DIR}/0007-http2-enable-strict-validation-of-HTTP-2-headers.-19.patch
+    git apply ${RPM_SOURCE_DIR}/0008-Always-disable-reads-when-connection-is-closed-with-.patch
+    git apply ${RPM_SOURCE_DIR}/0009.1-Fix-flaky-http2-integration-tests-29.patch
+  popd
+}
 
 preprocess_envs
 fetch
+add_patches
 patch_class_memaccess
 replace_python
 update_compiler_flags
