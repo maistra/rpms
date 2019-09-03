@@ -23,7 +23,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum        6e6bc38adb9619dabd9485d989ea729d
+%global checksum 0fa9d523eec3ba07de3c7a9afa4d156e
 
 %global _prefix /usr/local
 

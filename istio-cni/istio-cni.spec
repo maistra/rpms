@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit 7a02a2e4fd34ea003ec69c8db184d109423bb85a
+%global git_commit 9b9c08e8a7104c51ee5ef836a304b7e13d170608
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -13,8 +13,8 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        0.12.0
-Release:        4%{?dist}
+Version:        1.0.0
+Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -97,6 +97,9 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Sun Sep 1 2019 Brian Avery <bavery@redhat.com> - 1.0.0
+- Updated to the Maistra 1.0.0 GA release
+
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-4
 - Update to Maistra 0.12 release
 
