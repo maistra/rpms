@@ -3,12 +3,12 @@
 NEW_SOURCES=""
 
 function usage() {
-    echo "Usage: $0 [-i <SHA of prometheus>]"
-    echo
-    exit 0
+  echo "Usage: $0 [-i <SHA of prometheus>]"
+  echo
+  exit 0
 }
 
-while getopts ":i:v:" opt; do
+while getopts ":i:" opt; do
   case ${opt} in
     i) PROMETHEUS_SHA="${OPTARG}";;
     *) usage;;
@@ -18,14 +18,12 @@ done
 [[ -z "${PROMETHEUS_SHA}" ]] && PROMETHEUS_SHA="$(grep '%global git_commit ' prometheus.spec | cut -d' ' -f3)"
 
 function update_commit() {
-    local prefix="$1"
-    local prefix_spec=${prefix/-/_}
-    local sha="$2"
+    local sha="$1"
 
-    local tarball="https://github.com/openshift/prometheus/archive/${PROMETHEUS_SHA}.tar.gz"
-    local filename="${prefix}${sha}.tar.gz"
+    local tarball="https://github.com/maistra/prometheus/archive/${sha}.tar.gz"
+    local filename="${sha}.tar.gz"
 
-    echo -n "Checking ${prefix}prometheus...   "
+    echo -n "Checking prometheus...   "
     if [ ! -f "${filename}" ]; then
         echo "Downloading ${tarball}"
         curl -Lfs ${tarball} -o "${filename}"
@@ -37,7 +35,7 @@ function update_commit() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/%global ${prefix_spec}git_commit .*/%global ${prefix_spec}git_commit ${sha}/" prometheus.spec
+    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" prometheus.spec
     NEW_SOURCES="${NEW_SOURCES} ${filename}"
 }
 
@@ -47,5 +45,5 @@ function new_sources() {
     md5sum ${NEW_SOURCES} > sources
 }
 
-update_commit "" "${PROMETHEUS_SHA}"
+update_commit "${PROMETHEUS_SHA}"
 new_sources
