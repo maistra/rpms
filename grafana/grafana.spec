@@ -4,17 +4,22 @@
 %global version 6.2.2
 
 Name:             grafana
-Version:          %{version}
-Release:          3%{?dist}
+Version:          6.2.2
+Release:          4%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
 
+%global webpack_hash 5b248f47a09de006a30a27901eaa5471e5660a86d52ea601a9be0d6c8a9393f2
+
 # Source0 contains the tagged upstream sources
-Source0:          https://github.com/grafana/grafana/archive/v%{version}.tar.gz
+Source0:          https://github.com/grafana/grafana/archive/v%{version}/grafana-%{version}.tar.gz
 
 # Source1 contains the front-end javascript modules bundled into a webpack
-Source1:          grafana_webpack-%{version}.tar.gz
+Source1:          grafana_webpack-%{version}.%{webpack_hash}.tar.gz
+
+# Source2 is the script to create the above webpack from grafana sources
+#Source2:          make_grafana_webpack.sh
 
 # Patches for upstream
 Patch1:           001-login-oauth-use-oauth2-exchange.patch
@@ -28,7 +33,9 @@ Patch4:           900-make-annobin-happy.patch
 
 # omit golang debugsource, see BZ995136 and related
 %global           _debugsource_template %{nil}
+
 %global           GRAFANA_HOME %{_datadir}/%{name}
+%global           binary_name grafana
 
 # grafana-server service daemon uses systemd
 %{?systemd_requires}
@@ -155,7 +162,7 @@ The Grafana prometheus datasource.
 
 # Set up build subdirs and links
 mkdir -p %{_builddir}/src/github.com/grafana
-ln -sf %{_builddir}/%{name}-%{version} \
+ln -sf %{_builddir}/%{binary_name}-%{version} \
     %{_builddir}/src/github.com/grafana/grafana
 
 # remove some (apparent) development files, for rpmlint
@@ -187,7 +194,7 @@ go run build.go build
 
 # binaries
 install -d %{buildroot}%{_sbindir}
-binaries=(%{name}-server %{name}-cli)
+binaries=(%{binary_name}-server %{binary_name}-cli)
 %if 0%{?with_debug} > 0
   for i in "${binaries[@]}"; do
         install -p -m 755 bin/%{_arch}/$i %{buildroot}%{_sbindir}
@@ -231,33 +238,33 @@ binaries=(%{name}-server %{name}-cli)
 %endif
 
 # other shared files, public html, webpack
-install -d %{buildroot}%{_datadir}/%{name}
-cp -a conf public %{buildroot}%{_datadir}/%{name}
+install -d %{buildroot}%{_datadir}/%{binary_name}
+cp -a conf public %{buildroot}%{_datadir}/%{binary_name}
 
 # man pages
 install -d %{buildroot}%{_mandir}/man1
 install -p -m 644 docs/man/man1/* %{buildroot}%{_mandir}/man1
 
 # config dirs
-install -d %{buildroot}%{_sysconfdir}/%{name}
+install -d %{buildroot}%{_sysconfdir}/%{binary_name}
 install -d %{buildroot}%{_sysconfdir}/sysconfig
 
 # config defaults
 install -p -m 644 conf/distro-defaults.ini \
-    %{buildroot}%{_sysconfdir}/%{name}/grafana.ini
+    %{buildroot}%{_sysconfdir}/%{binary_name}/grafana.ini
 install -p -m 644 conf/distro-defaults.ini \
-    %{buildroot}%{_datadir}/%{name}/conf/defaults.ini
-install -p -m 644 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{name}/ldap.toml
+    %{buildroot}%{_datadir}/%{binary_name}/conf/defaults.ini
+install -p -m 644 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{binary_name}/ldap.toml
 install -p -m 644 packaging/rpm/sysconfig/grafana-server \
     %{buildroot}%{_sysconfdir}/sysconfig/grafana-server
 
 # config database directory and plugins
-install -d %{buildroot}%{_sharedstatedir}/%{name}
-install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}
-install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}/plugins
+install -d %{buildroot}%{_sharedstatedir}/%{binary_name}
+install -d -m 755 %{buildroot}%{_sharedstatedir}/%{binary_name}
+install -d -m 755 %{buildroot}%{_sharedstatedir}/%{binary_name}/plugins
 
 # log directory
-install -d %{buildroot}%{_localstatedir}/log/%{name}
+install -d %{buildroot}%{_localstatedir}/log/%{binary_name}
 
 # systemd service files
 install -d %{buildroot}%{_unitdir} # only needed for manual rpmbuilds
@@ -266,23 +273,23 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 
 %files
 # binaries
-%{_sbindir}/%{name}-server
-%{_sbindir}/%{name}-cli
+%{_sbindir}/%{binary_name}-server
+%{_sbindir}/%{binary_name}-cli
 
 # config files
-%dir %{_sysconfdir}/%{name}
-%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{name}/grafana.ini
-%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{name}/ldap.toml
+%dir %{_sysconfdir}/%{binary_name}
+%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{binary_name}/grafana.ini
+%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{binary_name}/ldap.toml
 %config(noreplace) %{_sysconfdir}/sysconfig/grafana-server
 
-%dir %{_sharedstatedir}/%{name}
-%dir %{_sharedstatedir}/%{name}/plugins
+%dir %{_sharedstatedir}/%{binary_name}
+%dir %{_sharedstatedir}/%{binary_name}/plugins
 
 # shared directory and all files therein, except some datasources
-%{_datadir}/%{name}/public
+%{_datadir}/%{binary_name}/public
 
 # built-in datasources that are sub-packaged
-%global dsdir %{_datadir}/%{name}/public/app/plugins/datasource
+%global dsdir %{_datadir}/%{binary_name}/public/app/plugins/datasource
 
 %exclude %{dsdir}/cloudwatch
 %exclude %{dsdir}/elasticsearch
@@ -297,18 +304,18 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 %exclude %{dsdir}/prometheus
 %exclude %{dsdir}/stackdriver
 
-%dir %{_datadir}/%{name}/conf
-%{_datadir}/%{name}/conf/*
+%dir %{_datadir}/%{binary_name}/conf
+%{_datadir}/%{binary_name}/conf/*
 
 # systemd service file
 %{_unitdir}/grafana-server.service
 
 # log directory - grafana.log is created by grafana-server, and it does it's own log rotation
-%attr(0755, root, root) %dir %{_localstatedir}/log/%{name}
+%attr(0755, root, root) %dir %{_localstatedir}/log/%{binary_name}
 
 # man pages for grafana binaries
-%{_mandir}/man1/%{name}-server.1*
-%{_mandir}/man1/%{name}-cli.1*
+%{_mandir}/man1/%{binary_name}-server.1*
+%{_mandir}/man1/%{binary_name}-cli.1*
 
 # other docs and license
 %license LICENSE
@@ -316,9 +323,12 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 %doc PLUGIN_DEV.md README.md ROADMAP.md UPGRADING_DEPENDENCIES.md
 
 %files prometheus
-%{_datadir}/%{name}/public/app/plugins/datasource/prometheus
+%{_datadir}/%{binary_name}/public/app/plugins/datasource/prometheus
 
 %changelog
+* Mon Sep 9 2019 Kevin Conner <kconner@redhat.com> - 6.2.2-4
+- Updated for maistra 1.0.0 release
+
 * Fri Aug 16 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 6.2.2-3
 - Removed grafana user creation
 
