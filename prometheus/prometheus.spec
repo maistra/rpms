@@ -7,12 +7,12 @@
 %global debug_package %{nil}
 %endif
 
-%global git_commit 625dc242457d7099b2f6e83267822b59f1c4251c
+%global git_commit 4e8cd4c6af4c8833544f800ea995777084dee2bf
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 Name:           prometheus
 Version:        2.7.2
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
@@ -20,10 +20,12 @@ URL:            https://prometheus.io/
 BuildRequires:  prometheus-promu = 0.2.0
 BuildRequires:  golang >= 1.11
 
-Source0:        https://github.com/openshift/prometheus/archive/%{git_commit}.tar.gz
+Source0:        https://github.com/maistra/prometheus/archive/%{git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+
+%global binary_name prometheus
 
 %description
 Prometheus is an open-source systems monitoring and alerting toolkit.
@@ -50,9 +52,9 @@ PROMU=$(which promu) make -e build
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{name}/console_libraries/
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{name}/consoles/
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{binary_name}/console_libraries/
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{binary_name}/consoles/
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{binary_name}/
 
 binaries=(prometheus promtool)
 cd PROMETHEUS/src/github.com/prometheus/prometheus
@@ -98,11 +100,11 @@ cd PROMETHEUS/src/github.com/prometheus/prometheus
     done
 %endif
 
-cp -a console_libraries/ $RPM_BUILD_ROOT%{_datadir}/%{name}
-ln -sf %{_datadir}/%{name}/console_libraries/ $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/
-cp -a consoles/ $RPM_BUILD_ROOT%{_datadir}/%{name}/
-ln -sf %{_datadir}/%{name}/consoles/ $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/
-cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/%{name}.yml
+cp -a console_libraries/ $RPM_BUILD_ROOT%{_datadir}/%{binary_name}
+ln -sf %{_datadir}/%{binary_name}/console_libraries/ $RPM_BUILD_ROOT%{_sysconfdir}/%{binary_name}/
+cp -a consoles/ $RPM_BUILD_ROOT%{_datadir}/%{binary_name}/
+ln -sf %{_datadir}/%{binary_name}/consoles/ $RPM_BUILD_ROOT%{_sysconfdir}/%{binary_name}/
+cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
@@ -112,13 +114,16 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{name
 %doc     PROMETHEUS/src/github.com/prometheus/prometheus/README.md
 %{_bindir}/prometheus
 %{_bindir}/promtool
-%{_datadir}/%{name}/console_libraries/
-%{_sysconfdir}/%{name}/console_libraries
-%{_datadir}/%{name}/consoles/
-%{_sysconfdir}/%{name}/consoles
-%config(noreplace) %{_sysconfdir}/%{name}/%{name}.yml
+%{_datadir}/%{binary_name}/console_libraries/
+%{_sysconfdir}/%{binary_name}/console_libraries
+%{_datadir}/%{binary_name}/consoles/
+%{_sysconfdir}/%{binary_name}/consoles
+%config(noreplace) %{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 %changelog
+* Mon Sep 9 2019 Kevin Conner <kconner@redhat.com> - 2.7.2-3
+- Maistra 1.0.0 release
+
 * Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 2.7.2-2
 - Maistra 0.12.0 release
 
