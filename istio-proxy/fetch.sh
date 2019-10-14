@@ -15,15 +15,15 @@ function check_envs() {
 
 function set_default_envs() {
   if [ -z "${PROXY_GIT_REPO}" ]; then
-    PROXY_GIT_REPO=https://github.com/maistra/proxy
+    PROXY_GIT_REPO=https://github.com/istio/proxy
   fi
 
   if [ -z "${OPENSSL_GIT_BRANCH}" ]; then
-    OPENSSL_GIT_BRANCH=maistra-1.0
+    OPENSSL_GIT_BRANCH=maistra-1.1
   fi
 
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-1.0
+    PROXY_GIT_BRANCH=release-1.3
   fi
 
   if [ -z "${CLEAN_FETCH}" ]; then
@@ -138,7 +138,7 @@ function replace_python() {
 
   pushd ${CACHE_DIR}
     find . -type f -name "rules" -exec sed -i 's|/usr/bin/python|/usr/bin/python3|g' {} +
-    sed -i 's|/usr/bin/python|/usr/bin/python3|g' base/external/local_config_cc/extra_tools/envoy_cc_wrapper
+    #sed -i 's|/usr/bin/python|/usr/bin/python3|g' base/external/local_config_cc/extra_tools/envoy_cc_wrapper
     #chmod 777 base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
     #sed -i "s|/usr/bin/env python|/usr/bin/env python3|g" bazel/base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
     #sed -i "s|PYTHON_BINARY = 'python'|PYTHON_BINARY = 'python3'|g" base/execroot/__main__/bazel-out/host/bin/external/bazel_tools/tools/build_defs/pkg/build_tar
@@ -201,7 +201,8 @@ function fetch() {
 function add_path_markers() {
   pushd ${FETCH_DIR}/istio-proxy
     sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
-    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
+#    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
+    find . -type f -name "CROSSTOOL" -exec sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" {} \; 
   popd
 }
 
@@ -213,11 +214,15 @@ function local_envoy_path_markers() {
 
 function update_compiler_flags() {
   pushd ${CACHE_DIR}
-    sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' base/external/local_config_cc/CROSSTOOL
-    sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' base/external/local_config_cc/CROSSTOOL
-    sed -i 's|compiler_flag: "-Wthread-safety"||g' base/external/local_config_cc/CROSSTOOL
-
+#    sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' base/external/local_config_cc/CROSSTOOL
+#    sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' base/external/local_config_cc/CROSSTOOL
+#    sed -i 's|compiler_flag: "-Wthread-safety"||g' base/external/local_config_cc/CROSSTOOL
+    find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' {} \;
+    find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' {} \;
+    find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-Wthread-safety"||g' {} \;
     sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' ${ENVOY_DIR}/bazel/envoy_build_system.bzl
+    sed -i 's|fatal_linker_warnings = true|fatal_linker_warnings = false|g' base/external/com_googlesource_chromium_v8/wee8/build/config/compiler/BUILD.gn
+    
   popd
 }
 
@@ -230,6 +235,14 @@ function create_tarball(){
       xz proxy-full.tar
     popd
   fi
+}
+
+function update_bazelrc(){
+  pushd ${PROXY_FETCH_DIR}/proxy
+    sed -i 's|build --host_force_python=PY2||g' .bazelrc
+    sed -i 's|build --action_env=BAZEL_LINKLIBS=-l%:libstdc++.a||g' .bazelrc
+    sed -i 's|build --action_env=BAZEL_LINKOPTS=-lm:-static-libgcc||g' .bazelrc
+  popd
 }
 
 function add_cxx_params(){
@@ -284,11 +297,11 @@ function add_BUILD_SCM_REVISIONS(){
 function strip_latomic(){
   if [ "$STRIP_LATOMIC" = "true" ]; then
     pushd ${CACHE_DIR}/base/external
-      find . -type f -name "configure.ac" -exec sed -i 's/-latomic//g' {} +
-      find . -type f -name "CMakeLists.txt" -exec sed -i 's/-latomic//g' {} +
-      find . -type f -name "configure" -exec sed -i 's/-latomic//g' {} +
-      find . -type f -name "CROSSTOOL" -exec sed -i 's/-latomic//g' {} +
-      find . -type f -name "envoy_build_system.bzl" -exec sed -i 's/-latomic//g' {} +
+      find . -type f -name "configure.ac" -exec sed -i 's/-latomic//g' {} \;
+      find . -type f -name "CMakeLists.txt" -exec sed -i 's/-latomic//g' {} \;
+      find . -type f -name "configure" -exec sed -i 's/-latomic//g' {} \;
+      find . -type f -name "CROSSTOOL" -exec sed -i 's/-latomic//g' {} \;
+      find . -type f -name "envoy_build_system.bzl" -exec sed -i 's/-latomic//g' {} \;
     popd
   fi
 }
@@ -303,13 +316,13 @@ function patch_class_memaccess() {
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
     pushd ${PROXY_FETCH_DIR}/proxy
-      git clone http://github.com/maistra/istio-proxy-openssl -b ${OPENSSL_GIT_BRANCH}
+      git clone http://github.com/bdecoste/istio-proxy-openssl -b ${OPENSSL_GIT_BRANCH}
       pushd istio-proxy-openssl
         ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
-      git clone http://github.com/maistra/envoy-openssl -b ${OPENSSL_GIT_BRANCH}
+      git clone http://github.com/bdecoste/envoy-openssl -b ${OPENSSL_GIT_BRANCH}
       pushd envoy-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${SHA}
       popd
@@ -353,13 +366,11 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
 
   popd
 
-  pushd ${CACHE_DIR}/base/external/local_config_cc
-
-    FILE="CROSSTOOL"
-    DELETE_START_PATTERN="cxx_flag: \"-std=c++0x\""
-    DELETE_STOP_PATTERN=""
-    START_OFFSET="0"
-    ADD_TEXT="  cxx_flag: \"-std=c++0x\"
+  pushd ${CACHE_DIR}
+    export DELETE_START_PATTERN="cxx_flag: \"-std=c++0x\""
+    export DELETE_STOP_PATTERN=""
+    export START_OFFSET="0"
+    export ADD_TEXT="  cxx_flag: \"-std=c++0x\"
   cxx_flag: \"-fPIC\"
   cxx_flag: \"-fPIE\"
   cxx_flag: \"-fcf-protection=full\"
@@ -370,13 +381,13 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
   cxx_flag: \"-fexceptions\"
   cxx_flag: \"-D_GLIBCXX_ASSERTIONS\"
 "
-    replace_text
+export -f replace_text
+find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \; 
 
-    FILE="CROSSTOOL"
-    DELETE_START_PATTERN="compiler_flag: \"-Wall\""
-    DELETE_STOP_PATTERN=""
-    START_OFFSET="0"
-    ADD_TEXT="  compiler_flag: \"-Wall\"
+    export DELETE_START_PATTERN="compiler_flag: \"-Wall\""
+    export DELETE_STOP_PATTERN=""
+    export START_OFFSET="0"
+    export ADD_TEXT="  compiler_flag: \"-Wall\"
   compiler_flag: \"-fPIC\"
   compiler_flag: \"-fPIE\"
   compiler_flag: \"-fcf-protection=full\"
@@ -387,13 +398,12 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
   compiler_flag: \"-fexceptions\"
   compiler_flag: \"-D_GLIBCXX_ASSERTIONS\"
 "
-    replace_text
+find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \;
 
-    FILE="CROSSTOOL"
-    DELETE_START_PATTERN="compiler_flag: \"-D_FORTIFY_SOURCE=1\""
-    DELETE_STOP_PATTERN=""
-    START_OFFSET="0"
-    ADD_TEXT="    compiler_flag: \"-D_FORTIFY_SOURCE=2\"
+    export DELETE_START_PATTERN="compiler_flag: \"-D_FORTIFY_SOURCE=1\""
+    export DELETE_STOP_PATTERN=""
+    export START_OFFSET="0"
+    export ADD_TEXT="    compiler_flag: \"-D_FORTIFY_SOURCE=2\"
     compiler_flag: \"-fPIC\"
     compiler_flag: \"-fPIE\"
     compiler_flag: \"-fplugin=annobin\"
@@ -404,6 +414,24 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
     compiler_flag: \"-fstack-protector-strong\"
     compiler_flag: \"-fexceptions\"
     compiler_flag: \"-D_GLIBCXX_ASSERTIONS\"
+"
+find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \;
+
+    FILE="base/external/local_config_cc/BUILD"
+    DELETE_START_PATTERN="\"-Wall\""
+    DELETE_STOP_PATTERN=""
+    START_OFFSET="0"
+    ADD_TEXT="    \"-Wall\",
+    \"-fPIC\",
+    \"-fPIE\",
+    \"-fplugin=annobin\",
+    \"-fcf-protection=full\",
+    \"-fstack-clash-protection\",
+    \"-fplugin=annobin\",
+    \"-fstack-protector-all\",
+    \"-fstack-protector-strong\",
+    \"-fexceptions\",
+    \"-D_GLIBCXX_ASSERTIONS\",
 "
     replace_text
 
@@ -424,10 +452,23 @@ function add_patches() {
   popd
 }
 
+function remove_bad_declaration_order_test() {
+  pushd ${PROXY_FETCH_DIR}/proxy
+    FILE="extensions/stats/BUILD"
+    DELETE_START_PATTERN="name = \"plugin_test\","
+    DELETE_STOP_PATTERN=")"
+    START_OFFSET="-1"
+    ADD_TEXT=""
+    replace_text
+  popd
+}
+
 preprocess_envs
 fetch
 patch_class_memaccess
 replace_python
+update_bazelrc
+remove_bad_declaration_order_test
 update_compiler_flags
 prune
 remove_build_artifacts
