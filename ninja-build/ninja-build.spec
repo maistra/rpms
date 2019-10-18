@@ -1,17 +1,15 @@
 Summary: Ninja is a small build system with a focus on speed.
 Name: ninja-build
-Version: 1.8.2
+Version: 1.9.0
 Release: 1%{?dist}
 Group: Development/Tools
 License: Apache 2.0
 URL: https://github.com/ninja-build/ninja
 Source0: https://github.com/ninja-build/ninja/archive/v%{version}.tar.gz
 
-Provides:       ninja-build
 BuildRequires:  gcc-c++
-BuildRequires:  python
+BuildRequires:  python36
 BuildRequires:  asciidoc
-#BuildRequires:  re2c >= 0.11.3
 Requires:       emacs-filesystem
 Requires:       vim-filesystem
 
@@ -28,7 +26,7 @@ seconds to start building after changing one file. Ninja is under a second.
 
 %build
 echo Building..
-./configure.py --bootstrap
+python3 ./configure.py --bootstrap
 ./ninja manual
 
 %install
@@ -54,6 +52,9 @@ ln -s ninja %{buildroot}%{_bindir}/ninja-build
 %{_datadir}/zsh/
 
 %changelog
+* Wed Oct 16 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.9.0-1
+- Updated to 1.9.0
+- Use Python 3
+
 * Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com> - 1.8.2-1
 - New package
-

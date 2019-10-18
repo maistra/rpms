@@ -4,7 +4,7 @@
 
 Name:           bazel
 Version:        0.22.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Correct, reproducible, and fast builds for everyone.
 License:        Apache License 2.0
 URL:            http://bazel.io/
@@ -16,7 +16,7 @@ BuildRequires:  unzip
 BuildRequires:  java-1.8.0-openjdk-devel
 BuildRequires:  zlib-devel
 BuildRequires:  pkgconfig(bash-completion)
-BuildRequires:  python
+BuildRequires:  python3
 BuildRequires:  gcc-c++
 Requires:       java-1.8.0-openjdk-devel
 
@@ -33,6 +33,9 @@ Correct, reproducible, and fast builds for everyone.
 
 which g++
 g++ --version
+
+mkdir PYTHON && ln -s /usr/bin/python3 PYTHON/python
+export PATH=$(pwd)/PYTHON:${PATH}
 
 CC=gcc
 CXX=g++
@@ -52,6 +55,9 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Wed Oct 16 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.22.0-2
+- Use Python 3
+
 * Wed Feb 13 2019 Kevin Conner <kconner@redhat.com> 0.22.0-1
 - Release 0.20.1-1
 * Tue Jan 15 2019 Kevin Conner <kconner@redhat.com> 0.20.0-1
@@ -60,4 +66,3 @@ rm -rf %{buildroot}
 - Release 0.15.2-1
 * Wed Mar 14 2018 William DeCoste <wdecoste@redhat.com> 0.11.1-1
 - Initial from vbatts copr
-

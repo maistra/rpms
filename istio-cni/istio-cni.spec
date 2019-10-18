@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        1.0.0
+Version:        1.0.2
 Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
@@ -97,6 +97,9 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Thu Oct 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.2-1
+- Bump version to 1.0.2
+
 * Sun Sep 1 2019 Brian Avery <bavery@redhat.com> - 1.0.0
 - Updated to the Maistra 1.0.0 GA release
 
