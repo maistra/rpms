@@ -8,7 +8,8 @@ function check_envs() {
     exit 1
   fi
 
-	PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
   CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
@@ -162,6 +163,7 @@ function fetch() {
       popd
 
       use_local_go
+      use_local_envoy
       copy_bazel_build_status
 
       bazel_dir="bazel"
@@ -202,13 +204,19 @@ function add_path_markers() {
   popd
 }
 
+function local_envoy_path_markers() {
+  pushd ${FETCH_DIR}/istio-proxy
+    sed -i "s|${ENVOY_DIR}|BUILD_PATH_MARKER/envoy|" ./proxy/WORKSPACE
+  popd
+}
+
 function update_compiler_flags() {
   pushd ${CACHE_DIR}
     sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' base/external/local_config_cc/CROSSTOOL
     sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' base/external/local_config_cc/CROSSTOOL
     sed -i 's|compiler_flag: "-Wthread-safety"||g' base/external/local_config_cc/CROSSTOOL
 
-    sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' base/external/envoy/bazel/envoy_build_system.bzl
+    sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' ${ENVOY_DIR}/bazel/envoy_build_system.bzl
   popd
 }
 
@@ -233,6 +241,35 @@ function add_cxx_params(){
 function use_local_go(){
   pushd ${PROXY_FETCH_DIR}/proxy
     sed -i 's|go_register_toolchains(go_version = GO_VERSION)|go_register_toolchains(go_version="host")|g' WORKSPACE
+  popd
+}
+
+function use_local_envoy(){
+  rm -rf ${ENVOY_DIR}
+  WORKSPACE_FILE=${PROXY_FETCH_DIR}/proxy/WORKSPACE
+
+  pushd ${PROXY_FETCH_DIR}
+    eval $(egrep '^ENVOY_SHA\>' ${WORKSPACE_FILE} | sed -e 's+ ++g')
+    eval $(grep -w url ${WORKSPACE_FILE} | sed -e 's+ ++g' -e 's/+ENVOY_SHA+/\$ENVOY_SHA/' -e 's+,$++')
+    curl -O -L $url
+    tar xf ${ENVOY_SHA}.tar.gz
+    mv envoy-${ENVOY_SHA} envoy
+    rm ${ENVOY_SHA}.tar.gz
+  popd
+
+  pushd ${ENVOY_DIR}/bazel
+    sed -i 's|github.com/eile|github.com/mirror|' repository_locations.bzl
+  popd
+
+  pushd ${PROXY_FETCH_DIR}/proxy
+    sed -i -e 's|/PATH/TO/ENVOY|'${ENVOY_DIR}'|' \
+      -e '/^http_archive/,/^)/ {
+            /^http_archive/,+5 s/^/#/
+          }' \
+      -e '/^#local_repository/,/^#)/ {
+            /^#local_repository/,+3 s/^#//
+          }' \
+      WORKSPACE
   popd
 }
 
@@ -377,8 +414,15 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
 
 }
 
+function add_patches() {
+  pushd ${ENVOY_DIR}
+    git apply ${RPM_SOURCE_DIR}/0001-envoy_6744_segv.patch
+  popd
+}
+
 preprocess_envs
 fetch
+add_patches
 patch_class_memaccess
 replace_python
 update_compiler_flags
@@ -391,4 +435,5 @@ add_BUILD_SCM_REVISIONS
 strip_latomic
 correct_links
 add_annobin_flags
+local_envoy_path_markers
 create_tarball

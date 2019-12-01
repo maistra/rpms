@@ -23,7 +23,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum 86211079b9e91033550afd90207155bf
+%global checksum 48588b30e431d231eb4ef8ce1d7c8f40
 
 %global _prefix /usr/local
 
@@ -48,6 +48,7 @@ BuildRequires:  python3
 BuildRequires:  cmake3
 BuildRequires:  openssl
 BuildRequires:  openssl-devel
+BuildRequires:  libatomic
 
 Source0:        istio-proxy.%{checksum}.tar.xz
 Source1:        build.sh

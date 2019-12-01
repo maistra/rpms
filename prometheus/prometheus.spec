@@ -7,12 +7,12 @@
 %global debug_package %{nil}
 %endif
 
-%global git_commit 4e8cd4c6af4c8833544f800ea995777084dee2bf
+%global git_commit a34d1c60dd3cd409edb31a9427133484d7fd370b
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 Name:           prometheus
 Version:        2.7.2
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
@@ -121,6 +121,9 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{bina
 %config(noreplace) %{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 %changelog
+* Tue Nov 12 2019 Kevin Conner <kconner@redhat.com> - 2.7.2-4
+- Maistra 1.0.2 release
+
 * Mon Sep 9 2019 Kevin Conner <kconner@redhat.com> - 2.7.2-3
 - Maistra 1.0.0 release
 
