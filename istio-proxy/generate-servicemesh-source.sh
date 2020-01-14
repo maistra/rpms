@@ -16,19 +16,6 @@ if [ ! -f "${INPUT_FILE}" ] ; then
   exit 2
 fi
 
-XZ=/usr/bin/xz
-
-(
-  cd /tmp
-  rm -rf "${OUTPUT_DIR}"
-  mkdir -p "${OUTPUT_DIR}"
-  (
-    cd "${OUTPUT_DIR}"
-    ${XZ} -dc ${INPUT_FILE} | tar -xf - --strip-components=1
-  )
-  tar cf - "${OUTPUT_DIR}" | ${XZ} -cz - > "${DIR}/${OUTPUT_FILE}"
-  rm -rf "${OUTPUT_DIR}"
-  CHECKSUM=$(md5sum "${DIR}/${OUTPUT_FILE}" | awk '{print $1}')
-  sed -i "${DIR}/istio-proxy.spec" -e 's+\(^%global\s*checksum\s*\).*$+\1'${CHECKSUM}'+'
-  mv "${DIR}/${OUTPUT_FILE}" "${DIR}/${OUTPUT_DIR}.${CHECKSUM}.tar.xz"
-)
+CHECKSUM=$(md5sum "${INPUT_FILE}" | awk '{print $1}')
+sed -i "${DIR}/istio-proxy.spec" -e 's+\(^%global\s*checksum\s*\).*$+\1'${CHECKSUM}'+'
+mv ${INPUT_FILE} "${DIR}/${OUTPUT_DIR}.${CHECKSUM}.tar.xz"

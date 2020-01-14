@@ -164,6 +164,7 @@ function fetch() {
 
       use_local_go
       use_local_envoy
+      add_patches
       copy_bazel_build_status
 
       bazel_dir="bazel"
@@ -417,12 +418,14 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
 function add_patches() {
   pushd ${ENVOY_DIR}
     git apply ${RPM_SOURCE_DIR}/0001-envoy_6744_segv.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0001-http-fix-heap-overflow-vulnerability-CVE-2019-18801.redhat.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0002-route-config-handle-no-host-path-headers-CVE-2019-18838.redhat.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0003-Stricter-validation-of-HTTP-1-headers-CVE-2019-18802.redhat.patch
   popd
 }
 
 preprocess_envs
 fetch
-add_patches
 patch_class_memaccess
 replace_python
 update_compiler_flags
