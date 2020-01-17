@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit c4ca5b0286c2b4c21fe7010de5b237b8359b56e7
+%global git_commit 0f1f6d34a0dc6099cbaa3706b423f2752993bab8
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,9 @@
 %global repo            istio-operator
 
 # are we building community or product rpms
-%global community_build  true
+# build_type can be one of [maistra, servicemesh]
+%global build_type maistra
+
 
 # https://github.com/maistra/istio-operator
 %global provider_prefix %{provider}.%{provider_tld}/%{project}
@@ -31,8 +33,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.0.0
-Release:        3%{?dist}
+Version:        1.1.0
+Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -64,16 +66,10 @@ mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
 
 %build
-if [[ "%{community_build}"  == "true" ]]; then
-  export BUILD_TYPE="maistra"
-else
-  export BUILD_TYPE="servicemesh"
-fi
-
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources
+GO111MODULE=on BUILD_TYPE=%{build_type} VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} GIT_UPSTREAM_REMOTE="_DUMMY_" OFFLINE_BUILD="true" make compile collect-resources
 popd
 
 %install
@@ -103,7 +99,7 @@ popd
 
 #install manifests
 install -d $RPM_BUILD_ROOT/manifests
-cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-${BUILD_TYPE}/* $RPM_BUILD_ROOT/manifests
+cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-%{build_type}/* $RPM_BUILD_ROOT/manifests
 
 %files
 %{_bindir}/istio-operator
