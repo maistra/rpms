@@ -21,13 +21,6 @@
 %global project         maistra
 %global repo            istio-operator
 
-# charts
-%global charts_git_commit c7ec7d4dfbe97812802f21c7cdb843bf62bed1a2
-%global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
-
-%global charts_repo      istio
-%global charts_version   1.1.0
-
 # are we building community or product rpms
 %global community_build  true
 
@@ -45,7 +38,6 @@ License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
 
 Source0:        https://%{provider_prefix}/%{repo}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
-Source1:        https://%{provider_prefix}/%{charts_repo}/archive/%{charts_git_commit}/%{charts_repo}-%{charts_git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
@@ -71,27 +63,20 @@ rm -rf OPERATOR
 mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
 
-mkdir -p OPERATOR/src/github.com/maistra/istio
-tar zxf %{SOURCE1} -C OPERATOR/src/github.com/maistra/istio --strip=1
-
 %build
+if [[ "%{community_build}"  == "true" ]]; then
+  export BUILD_TYPE="maistra"
+else
+  export BUILD_TYPE="servicemesh"
+fi
+
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} ./tmp/build/build.sh
-
+VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources
 popd
-cp -r src/github.com/maistra/istio/install/kubernetes/helm/ src/github.com/maistra/istio-operator/tmp/_output
-pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} MAISTRA_VERSION=%{version} SOURCE_DIR=. HELM_DIR=./tmp/_output/helm ./tmp/build/patch-charts.sh
 
 %install
-if [[ "%{community_build}"  == "true" ]]; then
-  BUILD_TYPE="maistra"
-else
-  BUILD_TYPE="servicemesh"
-fi
-
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
@@ -105,21 +90,20 @@ pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
 %endif
 popd
 
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm
+TEMPLATES_DIR=$RPM_BUILD_ROOT/%{_datadir}/istio-operator/default-templates
+mkdir -p ${TEMPLATES_DIR}
+
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/resources
 # install the charts
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm/%{charts_version}
-pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/
-cp -rpavT helm/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm/%{charts_version}
+cp -rpavT helm/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm
+# install the templates
+cp -rpavT default-templates/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/default-templates
 popd
 
 #install manifests
 install -d $RPM_BUILD_ROOT/manifests
 cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-${BUILD_TYPE}/* $RPM_BUILD_ROOT/manifests
-
-# install the templates
-TEMPLATES_DIR=$RPM_BUILD_ROOT/%{_datadir}/istio-operator/default-templates
-mkdir -p ${TEMPLATES_DIR}
-cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/${BUILD_TYPE} ${TEMPLATES_DIR}/default
-cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/base ${TEMPLATES_DIR}/base
 
 %files
 %{_bindir}/istio-operator
