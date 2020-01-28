@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit c4ca5b0286c2b4c21fe7010de5b237b8359b56e7
+%global git_commit 354e15f668b771bdcc02163bbcebcf09c2048509
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -31,8 +31,8 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.0.0
-Release:        3%{?dist}
+Version:        1.0.4
+Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
@@ -111,6 +111,12 @@ cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-${BUILD_TYPE}/* 
 /manifests
 
 %changelog
+* Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
+- Bump version to 1.0.4
+
+* Thu Oct 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.2-1
+- Bump version to 1.0.2
+
 * Sun Sep 1 2019 Brian Avery <bavery@redhat.com> - 1.0.0-3
 - Updated to the Maistra 1.0.0 GA release
 

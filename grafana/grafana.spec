@@ -10,7 +10,7 @@ Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
 
-%global webpack_hash 5b248f47a09de006a30a27901eaa5471e5660a86d52ea601a9be0d6c8a9393f2
+%global webpack_hash 5cc21d350fe788c277b74d39dbcb8dc13ea9c09460e1b85e543558482295d91a
 
 # Source0 contains the tagged upstream sources
 Source0:          https://github.com/grafana/grafana/archive/v%{version}/grafana-%{version}.tar.gz

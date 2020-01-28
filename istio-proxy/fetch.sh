@@ -8,7 +8,8 @@ function check_envs() {
     exit 1
   fi
 
-	PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
   CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
@@ -162,6 +163,8 @@ function fetch() {
       popd
 
       use_local_go
+      use_local_envoy
+      add_patches
       copy_bazel_build_status
 
       bazel_dir="bazel"
@@ -203,6 +206,12 @@ function add_path_markers() {
   popd
 }
 
+function local_envoy_path_markers() {
+  pushd ${FETCH_DIR}/istio-proxy
+    sed -i "s|${ENVOY_DIR}|BUILD_PATH_MARKER/envoy|" ./proxy/WORKSPACE
+  popd
+}
+
 function update_compiler_flags() {
   pushd ${CACHE_DIR}
 #    sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' base/external/local_config_cc/CROSSTOOL
@@ -211,8 +220,9 @@ function update_compiler_flags() {
     find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-fcolor-diagnostics"|cxx_builtin_include_directory: "/usr/include"|g' {} \;
     find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-Wself-assign"|cxx_builtin_include_directory: "/usr/lib/gcc/x86_64-redhat-linux/8/include"|g' {} \;
     find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-Wthread-safety"||g' {} \;
-    sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' base/external/envoy/bazel/envoy_build_system.bzl
+    sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' ${ENVOY_DIR}/bazel/envoy_build_system.bzl
     sed -i 's|fatal_linker_warnings = true|fatal_linker_warnings = false|g' base/external/com_googlesource_chromium_v8/wee8/build/config/compiler/BUILD.gn
+    
   popd
 }
 
@@ -245,6 +255,35 @@ function add_cxx_params(){
 function use_local_go(){
   pushd ${PROXY_FETCH_DIR}/proxy
     sed -i 's|go_register_toolchains(go_version = GO_VERSION)|go_register_toolchains(go_version="host")|g' WORKSPACE
+  popd
+}
+
+function use_local_envoy(){
+  rm -rf ${ENVOY_DIR}
+  WORKSPACE_FILE=${PROXY_FETCH_DIR}/proxy/WORKSPACE
+
+  pushd ${PROXY_FETCH_DIR}
+    eval $(egrep '^ENVOY_SHA\>' ${WORKSPACE_FILE} | sed -e 's+ ++g')
+    eval $(grep -w url ${WORKSPACE_FILE} | sed -e 's+ ++g' -e 's/+ENVOY_SHA+/\$ENVOY_SHA/' -e 's+,$++')
+    curl -O -L $url
+    tar xf ${ENVOY_SHA}.tar.gz
+    mv envoy-${ENVOY_SHA} envoy
+    rm ${ENVOY_SHA}.tar.gz
+  popd
+
+  pushd ${ENVOY_DIR}/bazel
+    sed -i 's|github.com/eile|github.com/mirror|' repository_locations.bzl
+  popd
+
+  pushd ${PROXY_FETCH_DIR}/proxy
+    sed -i -e 's|/PATH/TO/ENVOY|'${ENVOY_DIR}'|' \
+      -e '/^http_archive/,/^)/ {
+            /^http_archive/,+5 s/^/#/
+          }' \
+      -e '/^#local_repository/,/^#)/ {
+            /^#local_repository/,+3 s/^#//
+          }' \
+      WORKSPACE
   popd
 }
 
@@ -405,16 +444,22 @@ find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \;
 }
 
 function add_patches() {
-  pushd ${CACHE_DIR}/base/external/envoy
-    git apply ${RPM_SOURCE_DIR}/0001-http-mitigate-delayed-close-timeout-race-with-connec.patch
-    git apply ${RPM_SOURCE_DIR}/0002-connection-don-t-pass-read-data-to-filters-when-in-d.patch
-    git apply ${RPM_SOURCE_DIR}/0003-util-add-Inline-storage-helper-class-and-use-it-in-a.patch
-    git apply ${RPM_SOURCE_DIR}/0004-http-fix-2-cases-where-HCM-codec-stream-state-diverg.patch
-    git apply ${RPM_SOURCE_DIR}/0005-http2-Limit-the-number-of-outbound-frames-9.patch
-    git apply ${RPM_SOURCE_DIR}/0006-http2-limit-the-number-of-inbound-frames.-20.patch
-    git apply ${RPM_SOURCE_DIR}/0007-http2-enable-strict-validation-of-HTTP-2-headers.-19.patch
-    git apply ${RPM_SOURCE_DIR}/0008-Always-disable-reads-when-connection-is-closed-with-.patch
-    git apply ${RPM_SOURCE_DIR}/0009.1-Fix-flaky-http2-integration-tests-29.patch
+  pushd ${ENVOY_DIR}
+    git apply ${RPM_SOURCE_DIR}/0001-envoy_6744_segv.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0001-http-fix-heap-overflow-vulnerability-CVE-2019-18801.redhat.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0002-route-config-handle-no-host-path-headers-CVE-2019-18838.redhat.patch
+    git apply ${RPM_SOURCE_DIR}/CVE-0003-Stricter-validation-of-HTTP-1-headers-CVE-2019-18802.redhat.patch
+  popd
+}
+
+function remove_bad_declaration_order_test() {
+  pushd ${PROXY_FETCH_DIR}/proxy
+    FILE="extensions/stats/BUILD"
+    DELETE_START_PATTERN="name = \"plugin_test\","
+    DELETE_STOP_PATTERN=")"
+    START_OFFSET="-1"
+    ADD_TEXT=""
+    replace_text
   popd
 }
 
@@ -431,7 +476,6 @@ function remove_bad_declaration_order_test() {
 
 preprocess_envs
 fetch
-#add_patches
 patch_class_memaccess
 replace_python
 update_bazelrc
@@ -446,4 +490,5 @@ add_BUILD_SCM_REVISIONS
 strip_latomic
 correct_links
 add_annobin_flags
+local_envoy_path_markers
 create_tarball

@@ -1,4 +1,4 @@
 export HUB=docker.io/maistra
-export TAG=1.0.0
+export TAG=1.0.4
 export BUILDINFO=buildinfo
 export STATIC=1
