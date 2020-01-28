@@ -1,5 +1,5 @@
 Name:           prometheus-promu
-Version:        0.2.0
+Version:        0.5.0
 Release:        1%{?dist}
 Summary:        Prometheus Utility Tool 
 License:        ASL 2.0
@@ -10,7 +10,7 @@ Source0:        https://github.com/prometheus/promu/archive/v%{version}.tar.gz
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
-BuildRequires:  golang >= 1.6
+BuildRequires:  golang >= 1.12
 
 %description
 Promu is part of Prometheus component Builds toolchain.
@@ -32,7 +32,7 @@ cd PROMU
 export GOPATH=$(pwd):%{gopath}
 
 cd src/github.com/prometheus/promu
-go build
+GO111MODULE=on go build -mod=vendor
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -54,5 +54,8 @@ cp -pav stripped/promu "${RPM_BUILD_ROOT}%{_bindir}/"
 %{_bindir}/promu
 
 %changelog
+* Tue Jan 28 2020 Daniel Grimm <dgrimm@redhat.com> - 0.5.0-1
+- Update to latest release
+
 * Wed Jun 20 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 0.2.0-1
 - First build
