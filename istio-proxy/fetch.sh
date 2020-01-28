@@ -463,6 +463,17 @@ function remove_bad_declaration_order_test() {
   popd
 }
 
+function remove_bad_declaration_order_test() {
+  pushd ${PROXY_FETCH_DIR}/proxy
+    FILE="extensions/stats/BUILD"
+    DELETE_START_PATTERN="name = \"plugin_test\","
+    DELETE_STOP_PATTERN=")"
+    START_OFFSET="-1"
+    ADD_TEXT=""
+    replace_text
+  popd
+}
+
 preprocess_envs
 fetch
 patch_class_memaccess
