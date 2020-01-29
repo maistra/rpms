@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.0.4
+Version:        1.0.5
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -521,6 +521,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Tue Jan 28 2020 Kevin Conner <kconner@redhat.com> - 1.0.5-1
+- Bump version to 1.0.5
+
 * Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
 - Bump version to 1.0.4
 
