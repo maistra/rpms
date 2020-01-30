@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 0
+%global with_tests 1
 # Build test binaries
 %global with_test_binaries 0
 
@@ -13,8 +13,17 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit a94ef08e0075597d45ae706a36e693506fcac774
-%global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
+%global proxy_git_commit 5a49500b42f0ab296c1f0b030caf0aba625fa8be
+%global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
+
+%global proxy_openssl_git_commit 10ba1241fbc9e90e3950eb45cd47c33a957cf70a
+%global proxy_openssl_shortcommit  %(c=%{proxy_openssl_git_commit}; echo ${c:0:7})
+
+%global envoy_openssl_git_commit aa6d2ff49b6c42fb6e4144866304c9024e53102a
+%global envoy_openssl_shortcommit  %(c=%{envoy_openssl_git_commit}; echo ${c:0:7})
+
+%global jwt_openssl_git_commit 21528f22d56cc20181ddb40ab27be286141ff583
+%global jwt_openssl_shortcommit  %(c=%{jwt_openssl_git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -23,18 +32,18 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum ef85b414d009b6ad8b688dc677eb56f7
+%global checksum 0c48e37fffa163b2cf3b8caf1b79424f
 
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.0.4
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
 
-BuildRequires:  bazel = 0.22.0
+BuildRequires:  bazel = 1.1.0
 BuildRequires:  ninja-build
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -76,12 +85,15 @@ istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio p
 %build
 
 cd ..
+
+#execute build.sh
 FETCH_DIR= CREATE_ARTIFACTS= STRIP=false %{SOURCE1}
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
+#strip binaries of unnecessary data
 binaries=(envoy)
 pushd ${RPM_BUILD_DIR}
 %if 0%{?with_debug}
