@@ -13,18 +13,39 @@ function check_envs() {
   CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
+function check_git_hash() {
+  local name "$1"
+  local commit_hash_name "$2"
+
+  eval commit_hash=\$$commit_hash_name
+  if [ -z "${commit_hash}" ]; then
+    echo "ERROR: ${name} was set but missing ${commit_hash_name}";
+    exit 1;
+  fi
+}
+
+function extract_dependency() {
+  local name="$1"
+  local repo="$2"
+  local commit="$3"
+
+  wget "${repo}/archive/${commit}.tar.gz"
+  tar xvf "${commit}.tar.gz"
+  rm "${commit}.tar.gz"
+  mv "${name}-${commit}" "${name}"
+}
+
 function set_default_envs() {
-  if [ -z "${PROXY_GIT_REPO}" ]; then
-    PROXY_GIT_REPO=https://github.com/istio/proxy
-  fi
+  PROXY_GIT_REPO=https://github.com/maistra/proxy
+  ISTIO_PROXY_OPENSSL_GIT_REPO=https://github.com/maistra/istio-proxy-openssl
+  ENVOY_OPENSSL_GIT_REPO=https://github.com/maistra/envoy-openssl
+  OPENSSL_GIT_BRANCH=maistra-1.0
+  JWT_VERIFY_LIB_OPENSSL_GIT_REPO=https://github.com/maistra/jwt-verify-lib-openssl
 
-  if [ -z "${OPENSSL_GIT_BRANCH}" ]; then
-    OPENSSL_GIT_BRANCH=maistra-1.1
-  fi
-
-  if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=release-1.3
-  fi
+  check_git_hash "Proxy" "PROXY_GIT_COMMIT_HASH"
+  check_git_hash "ISTIO_PROXY_OPENSSL" "ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH"
+  check_git_hash "ENVOY_OPENSSL" "ENVOY_OPENSSL_GIT_COMMIT_HASH"
+  check_git_hash "JWT_VERIFY_LIB_OPENSSL" "JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH"
 
   if [ -z "${CLEAN_FETCH}" ]; then
     CLEAN_FETCH=true
@@ -155,12 +176,7 @@ function fetch() {
 
     pushd ${PROXY_FETCH_DIR}
 
-      #clone proxy
-      git clone ${PROXY_GIT_REPO}
-      pushd ${PROXY_FETCH_DIR}/proxy
-        git checkout ${PROXY_GIT_BRANCH}
-        SHA="$(git rev-parse --verify HEAD)"
-      popd
+      extract_dependency "proxy" "${PROXY_GIT_REPO}" "${PROXY_GIT_COMMIT_HASH}"
 
       use_local_go
       use_local_envoy
@@ -202,7 +218,7 @@ function add_path_markers() {
   pushd ${FETCH_DIR}/istio-proxy
     sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
 #    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
-    find . -type f -name "CROSSTOOL" -exec sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" {} \; 
+    find . -type f -name "CROSSTOOL" -exec sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" {} \;
   popd
 }
 
@@ -222,7 +238,7 @@ function update_compiler_flags() {
     find . -type f -name "CROSSTOOL" -exec sed -i 's|compiler_flag: "-Wthread-safety"||g' {} \;
     sed -i 's|\["-static-libstdc++", "-static-libgcc"],||g' ${ENVOY_DIR}/bazel/envoy_build_system.bzl
     sed -i 's|fatal_linker_warnings = true|fatal_linker_warnings = false|g' base/external/com_googlesource_chromium_v8/wee8/build/config/compiler/BUILD.gn
-    
+
   popd
 }
 
@@ -316,19 +332,19 @@ function patch_class_memaccess() {
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
     pushd ${PROXY_FETCH_DIR}/proxy
-      git clone http://github.com/bdecoste/istio-proxy-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "istio-proxy-openssl" "${ISTIO_PROXY_OPENSSL_GIT_REPO}" "${ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH}"
       pushd istio-proxy-openssl
         ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
 
-      git clone http://github.com/bdecoste/envoy-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "envoy-openssl" "${ENVOY_OPENSSL_GIT_REPO}" "${ENVOY_OPENSSL_GIT_COMMIT_HASH}"
       pushd envoy-openssl
-        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL ${SHA}
+        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL
       popd
       rm -rf envoy-openssl
 
-      git clone http://github.com/maistra/jwt-verify-lib-openssl -b ${OPENSSL_GIT_BRANCH}
+      extract_dependency "jwt-verify-lib-openssl" "${JWT_VERIFY_LIB_OPENSSL_GIT_REPO}" "${JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH}"
       pushd jwt-verify-lib-openssl
         ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
       popd
@@ -382,7 +398,7 @@ echo "${BUILD_OPTIONS}" >> .bazelrc
   cxx_flag: \"-D_GLIBCXX_ASSERTIONS\"
 "
 export -f replace_text
-find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \; 
+find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \;
 
     export DELETE_START_PATTERN="compiler_flag: \"-Wall\""
     export DELETE_STOP_PATTERN=""
@@ -445,10 +461,6 @@ find . -type f -name "CROSSTOOL" -exec bash -c 'replace_text {}' \;
 
 function add_patches() {
   pushd ${ENVOY_DIR}
-    git apply ${RPM_SOURCE_DIR}/0001-envoy_6744_segv.patch
-    git apply ${RPM_SOURCE_DIR}/CVE-0001-http-fix-heap-overflow-vulnerability-CVE-2019-18801.redhat.patch
-    git apply ${RPM_SOURCE_DIR}/CVE-0002-route-config-handle-no-host-path-headers-CVE-2019-18838.redhat.patch
-    git apply ${RPM_SOURCE_DIR}/CVE-0003-Stricter-validation-of-HTTP-1-headers-CVE-2019-18802.redhat.patch
   popd
 }
 

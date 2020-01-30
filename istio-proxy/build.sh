@@ -72,10 +72,10 @@ function run_build() {
     #replace fully qualified tool path from fetch
     sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base/external/local_config_cc/cc_wrapper.sh
     find . -type f -name "CROSSTOOL" -exec sed -i "s|BUILD_PATH_MARKER/bazel|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel|" {} \;
-   
+    
     #BAVERY_TODO: DOUBLECHECK
     sed -i "s|BUILD_PATH_MARKER/envoy|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/envoy|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/WORKSPACE
-
+    
     set_python_rules_date
     RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --jobs=9 --force_pic=true --config=${BUILD_CONFIG} "//..."
     
