@@ -16,11 +16,10 @@ The following instructions apply to all RPMs in this repository.
 
 ### Generating a Source RPM
 * Change directory to the directory for the RPM to build. 
-* Update the metadata for the RPM see [Fields to update](#fields-to-update) for more details
-
-. These should be updated
-to match the GitHub commit ID of the commit to use for the RPM. Some repositories have one commit and
-others have multiple commits depending on how many GitHub repositories the build references. 
+* Update the metadata for the RPM see [Fields to update](#fields-to-update) for more details. These 
+should be updated to match the GitHub commit ID of the commit to use for the RPM. Some repositories 
+have one commit andothers have multiple commits depending on how many GitHub repositories the build 
+references. 
 * Execute ./update.sh. This will generate a .tar.gz file containing the sources to use for the build
 as well as update the sources file. These changes and the changes to the .spec file should be
 submitted in a pull request. 
