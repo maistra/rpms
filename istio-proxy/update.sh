@@ -40,6 +40,12 @@ function update_commit() {
     sed -i "s/%global git_commit .*/%global jwt_openssl_git_commit ${jwt_openssl_sha}/" istio-proxy.spec
 }
 
+#update_bazel_version checks istio-proxy.spec for the specified bazel version and updates common.sh
+function update_bazel_version() {
+    bazelVersion=$(grep 'BuildRequires:  bazel =' istio-proxy.spec | cut -d ' ' -f5)
+    sed -i "s/^[ ]*BAZEL_VERSION=.*/  BAZEL_VERSION=${bazelVersion}/" common.sh
+}
+
 function new_sources() {
     local filename=$1
     echo
@@ -75,4 +81,5 @@ function get_sources() {
 }
 
 update_commit "${PROXY_SHA}" "${PROXY_OPENSSL_SHA}" "${ENVOY_OPENSSL_SHA}" "${JWT_VERIFY_LIB_OPENSSL_SHA}"
+update_bazel_version
 get_sources "${PROXY_SHA}" "${PROXY_OPENSSL_SHA}" "${ENVOY_OPENSSL_SHA}" "${JWT_VERIFY_LIB_OPENSSL_SHA}"
