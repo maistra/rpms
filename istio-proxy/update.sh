@@ -1,15 +1,17 @@
 #!/bin/bash
 
-PROXY_SHA=""
 function usage() {
-    echo "Usage: $0 [-i <SHA of istio>]"
+    echo "Usage: $0 [-p <SHA of istio-proxy> -o <SHA of proxy-openssl> -e <SHA of Envoy OpenSSL> -j <SHA of JWT Verify Lib>]"
     echo
     exit 0
 }
 
 while getopts ":i:" opt; do
     case ${opt} in
-        i) PROXY_SHA="${OPTARG}";;
+        p) PROXY_SHA="${OPTARG}";;
+        o) PROXY_OPENSSL_SHA="${OPTARG}";;
+        e) ENVOY_OPENSSL_SHA="${OPTARG}";;
+        j) JWT_VERIFY_LIB_OPENSSL_SHA="${OPTARG}";;
         *) usage;;
     esac
 done
@@ -28,16 +30,16 @@ function update_commit() {
 
     echo
     echo "Updating spec file with Proxy SHA: ${proxy_sha}"
-    sed -i "s/%global git_commit .*/%global proxy_git_commit ${proxy_sha}/" istio-proxy.spec
+    sed -i "s/%global proxy_git_commit .*/%global proxy_git_commit ${proxy_sha}/" istio-proxy.spec
 
     echo "Updating spec file with Proxy OpenSSL SHA: ${proxy_openssl_sha}"
-    sed -i "s/%global git_commit .*/%global proxy_openssl_git_commit ${proxy_openssl_sha}/" istio-proxy.spec
+    sed -i "s/%global proxy_openssl_git_commit .*/%global proxy_openssl_git_commit ${proxy_openssl_sha}/" istio-proxy.spec
 
     echo "Updating spec file with Envoy OpenSSL SHA: ${envoy_openssl_sha}"
-    sed -i "s/%global git_commit .*/%global envoy_openssl_git_commit ${envoy_openssl_sha}/" istio-proxy.spec
+    sed -i "s/%global envoy_openssl_git_commit .*/%global envoy_openssl_git_commit ${envoy_openssl_sha}/" istio-proxy.spec
 
     echo "Updating spec file with JWT Verify Lib OpenSSL SHA: ${jwt_openssl_sha}"
-    sed -i "s/%global git_commit .*/%global jwt_openssl_git_commit ${jwt_openssl_sha}/" istio-proxy.spec
+    sed -i "s/%global jwt_openssl_git_commit .*/%global jwt_openssl_git_commit ${jwt_openssl_sha}/" istio-proxy.spec
 }
 
 #update_bazel_version checks istio-proxy.spec for the specified bazel version and updates common.sh
