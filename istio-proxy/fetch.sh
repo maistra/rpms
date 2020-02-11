@@ -38,14 +38,10 @@ function extract_dependency() {
 function set_default_envs() {
   PROXY_GIT_REPO=https://github.com/maistra/proxy
   ISTIO_PROXY_OPENSSL_GIT_REPO=https://github.com/maistra/istio-proxy-openssl
-  ENVOY_OPENSSL_GIT_REPO=https://github.com/maistra/envoy-openssl
-  OPENSSL_GIT_BRANCH=maistra-1.0
-  JWT_VERIFY_LIB_OPENSSL_GIT_REPO=https://github.com/maistra/jwt-verify-lib-openssl
 
   check_git_hash "Proxy" "PROXY_GIT_COMMIT_HASH"
   check_git_hash "ISTIO_PROXY_OPENSSL" "ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH"
-  check_git_hash "ENVOY_OPENSSL" "ENVOY_OPENSSL_GIT_COMMIT_HASH"
-  check_git_hash "JWT_VERIFY_LIB_OPENSSL" "JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH"
+
 
   if [ -z "${CLEAN_FETCH}" ]; then
     CLEAN_FETCH=true
@@ -337,18 +333,6 @@ function replace_ssl() {
         ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
       popd
       rm -rf istio-proxy-openssl
-
-      extract_dependency "envoy-openssl" "${ENVOY_OPENSSL_GIT_REPO}" "${ENVOY_OPENSSL_GIT_COMMIT_HASH}"
-      pushd envoy-openssl
-        ./openssl.sh ${CACHE_DIR}/base/external/envoy OPENSSL
-      popd
-      rm -rf envoy-openssl
-
-      extract_dependency "jwt-verify-lib-openssl" "${JWT_VERIFY_LIB_OPENSSL_GIT_REPO}" "${JWT_VERIFY_LIB_OPENSSL_GIT_COMMIT_HASH}"
-      pushd jwt-verify-lib-openssl
-        ./openssl.sh ${CACHE_DIR}/base/external/com_github_google_jwt_verify OPENSSL
-      popd
-      rm -rf jwt-verify-lib-openssl
     popd
 
     rm -rf ${CACHE_DIR}/base/external/*boringssl*
