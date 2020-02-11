@@ -13,17 +13,11 @@
 %global debug_package   %{nil}
 %endif
 
-%global proxy_git_commit 5a49500b42f0ab296c1f0b030caf0aba625fa8be
+%global proxy_git_commit 765ea0c4b2e16b8e109fac1c7116468904a64ac8
 %global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
 
 %global proxy_openssl_git_commit 10ba1241fbc9e90e3950eb45cd47c33a957cf70a
 %global proxy_openssl_shortcommit  %(c=%{proxy_openssl_git_commit}; echo ${c:0:7})
-
-%global envoy_openssl_git_commit aa6d2ff49b6c42fb6e4144866304c9024e53102a
-%global envoy_openssl_shortcommit  %(c=%{envoy_openssl_git_commit}; echo ${c:0:7})
-
-%global jwt_openssl_git_commit 21528f22d56cc20181ddb40ab27be286141ff583
-%global jwt_openssl_shortcommit  %(c=%{jwt_openssl_git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -32,7 +26,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum 0c48e37fffa163b2cf3b8caf1b79424f
+%global checksum 
 
 %global _prefix /usr/local
 
@@ -143,6 +137,10 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Tue Feb 11 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
+- Updated to Istio 1.4 proxy
+- Added support for building based on SHA
+- Simplified repositories
 * Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
 - Bump version to 1.0.4
 
