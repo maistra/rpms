@@ -13,11 +13,8 @@
 %global debug_package   %{nil}
 %endif
 
-%global proxy_git_commit 765ea0c4b2e16b8e109fac1c7116468904a64ac8
+%global proxy_git_commit e885dd6880407edd27c81f8f42c5480a6d80751d
 %global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
-
-%global proxy_openssl_git_commit 10ba1241fbc9e90e3950eb45cd47c33a957cf70a
-%global proxy_openssl_shortcommit  %(c=%{proxy_openssl_git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -26,7 +23,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum 18025668d3ea5a6a1987334d40a9df37
+%global checksum ac4ec90d6ae15ca45a556e4c854b4ab0
 
 %global _prefix /usr/local
 
