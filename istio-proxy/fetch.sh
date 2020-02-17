@@ -37,11 +37,8 @@ function extract_dependency() {
 
 function set_default_envs() {
   PROXY_GIT_REPO=https://github.com/maistra/proxy
-  ISTIO_PROXY_OPENSSL_GIT_REPO=https://github.com/maistra/istio-proxy-openssl
 
   check_git_hash "Proxy" "PROXY_GIT_COMMIT_HASH"
-  check_git_hash "ISTIO_PROXY_OPENSSL" "ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH"
-
 
   if [ -z "${CLEAN_FETCH}" ]; then
     CLEAN_FETCH=true
@@ -327,14 +324,6 @@ function patch_class_memaccess() {
 
 function replace_ssl() {
   if [ "$REPLACE_SSL" = "true" ]; then
-    pushd ${PROXY_FETCH_DIR}/proxy
-      extract_dependency "istio-proxy-openssl" "${ISTIO_PROXY_OPENSSL_GIT_REPO}" "${ISTIO_PROXY_OPENSSL_GIT_COMMIT_HASH}"
-      pushd istio-proxy-openssl
-        ./openssl.sh ${PROXY_FETCH_DIR}/proxy OPENSSL
-      popd
-      rm -rf istio-proxy-openssl
-    popd
-
     rm -rf ${CACHE_DIR}/base/external/*boringssl*
 
     # re-fetch for updated dependencies
