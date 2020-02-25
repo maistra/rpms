@@ -31,7 +31,7 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.0.4
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
@@ -63,10 +63,11 @@ rm -rf OPERATOR
 mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
 
+%build
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources collect-olm-manifests
+COMMUNITY=%{community_build} GO111MODULE=on VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources collect-olm-manifests
 popd
 
 %install
@@ -78,8 +79,36 @@ pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
     cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
 %else
     mkdir stripped
-    strip -o stripped/istio-operator -s istio-operator
-    cp -pav stripped/istio-operator $RPM_BUILD_ROOT%{_bindir}/
+   
+    echo "Dumping dynamic symbols"
+        nm -D istio-operator --format=posix --defined-only \
+  | awk '{ print $1 }' | sort > dynsyms
+
+       echo "Dumping function symbols"
+       nm istio-operator --format=posix --defined-only \
+  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+  | sort > funcsyms
+
+        echo "Grabbing other function symbols"
+        comm -13 dynsyms funcsyms > keep_symbols
+
+
+  COMPRESSED_NAME="operator_debuginfo"
+        echo "remove unnecessary debug info"
+        objcopy -S --remove-section .gdb_index --remove-section .comment \
+  --keep-symbols=keep_symbols "istio-operator" "${COMPRESSED_NAME}"
+
+        echo "stripping operator"
+        strip -o "stripped/istio-operator" -s istio-operator
+
+
+        echo "compress debugdata for istio-operator into ${COMPRESSED_NAME}.xz"
+        xz "${COMPRESSED_NAME}"
+
+        echo "inject compressed data into .gnu_debugdata for istio-operator"
+        objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/istio-operator"
+
+        cp -pav "stripped/istio-operator" "${RPM_BUILD_ROOT}%{_bindir}/"
 %endif
 popd
 
@@ -105,6 +134,9 @@ popd
 /manifests
 
 %changelog
+* Tue Feb 25 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
+- Update to Maistra 1.1
+
 * Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
 - Bump version to 1.0.4
 
