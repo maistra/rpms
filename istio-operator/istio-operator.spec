@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 354e15f668b771bdcc02163bbcebcf09c2048509
+%global git_commit 5fa441ff9d7c2354b33f24e0e6552f1a7b574d0e
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -63,17 +63,10 @@ rm -rf OPERATOR
 mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
 
-%build
-if [[ "%{community_build}"  == "true" ]]; then
-  export BUILD_TYPE="maistra"
-else
-  export BUILD_TYPE="servicemesh"
-fi
-
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources
+COMMUNITY=%{community_build} VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources collect-olm-manifests
 popd
 
 %install
@@ -102,8 +95,9 @@ cp -rpavT default-templates/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/default-t
 popd
 
 #install manifests
-install -d $RPM_BUILD_ROOT/manifests
-cp -ra OPERATOR/src/github.com/maistra/istio-operator/manifests-${BUILD_TYPE}/* $RPM_BUILD_ROOT/manifests
+pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output
+cp -rpavT manifests $RPM_BUILD_ROOT/manifests
+popd
 
 %files
 %{_bindir}/istio-operator
