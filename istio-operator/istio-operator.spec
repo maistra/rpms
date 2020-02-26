@@ -67,7 +67,7 @@ tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
 cd OPERATOR
 export GOPATH=$(pwd):%{gopath}
 pushd src/github.com/maistra/istio-operator/
-COMMUNITY=%{community_build} GO111MODULE=on VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources collect-olm-manifests
+COMMUNITY=%{community_build} GO111MODULE=on VERSION=%{version}-%{release} GITREVISION=%{git_shortcommit} GITSTATUS=Clean GITTAG=%{version} make compile collect-resources
 popd
 
 %install
@@ -79,7 +79,7 @@ pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
     cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
 %else
     mkdir stripped
-   
+
     echo "Dumping dynamic symbols"
         nm -D istio-operator --format=posix --defined-only \
   | awk '{ print $1 }' | sort > dynsyms
