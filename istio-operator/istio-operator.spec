@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 5fa441ff9d7c2354b33f24e0e6552f1a7b574d0e
+%global git_commit 259bb0321cdabf58218190ef0ac8bf57eeaae43e
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -121,11 +121,9 @@ pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/resources
 cp -rpavT helm/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/helm
 # install the templates
 cp -rpavT default-templates/ $RPM_BUILD_ROOT%{_datadir}/istio-operator/default-templates
-popd
 
 #install manifests
-pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output
-cp -rpavT manifests $RPM_BUILD_ROOT/manifests
+cp -rpavT manifests/ $RPM_BUILD_ROOT/manifests
 popd
 
 %files
