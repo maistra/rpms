@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 18699c8ff69baa84210b7f1e3a1785eec91dd0bb
+%global git_commit 0e21ea01b04d2c6851c7ae624f98b7daff27a371
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -22,7 +22,7 @@
 %global repo            istio-operator
 
 # charts
-%global charts_git_commit 4638b96d0091a41813043e6cee91d02f87d6e73c
+%global charts_git_commit e9938ef4fd5a8b48dd0deea3bb276f18cded6e26
 %global chargs_git_shortcommit  %(c=%{charts_git_commit}; echo ${c:0:7})
 
 %global charts_repo      istio
@@ -38,7 +38,7 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.0.6
+Version:        1.0.8
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
@@ -127,6 +127,9 @@ cp OPERATOR/src/github.com/maistra/istio-operator/deploy/smcp-templates/base ${T
 /manifests
 
 %changelog
+* Tue Feb 25 2020 Kevin Conner <kconner@redhat.com> - 1.0.8-1
+- Bump version to 1.0.8
+
 * Sun Feb 2 2020 Kevin Conner <kconner@redhat.com> - 1.0.6-1
 - Bump version to 1.0.6
 

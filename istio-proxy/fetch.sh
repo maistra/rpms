@@ -422,6 +422,9 @@ function add_patches() {
     git apply ${RPM_SOURCE_DIR}/CVE-0002-route-config-handle-no-host-path-headers-CVE-2019-18838.redhat.patch
     git apply ${RPM_SOURCE_DIR}/CVE-0003-Stricter-validation-of-HTTP-1-headers-CVE-2019-18802.redhat.patch
   popd
+  pushd ${PROXY_FETCH_DIR}/proxy
+    git apply ${RPM_SOURCE_DIR}/CVE-0004-stricter-authentication-policy-path-matching-CVE-2020-8595.redhat.patch
+  popd
 }
 
 preprocess_envs

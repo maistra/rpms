@@ -23,12 +23,12 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum ef85b414d009b6ad8b688dc677eb56f7
+%global checksum 4a09db5b04d94f139143b1d92fbe51a4
 
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.0.6
+Version:        1.0.8
 Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
@@ -131,6 +131,9 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Tue Feb 25 2020 Kevin Conner <kconner@redhat.com> - 1.0.8-1
+- Bump version to 1.0.8
+
 * Sun Feb 2 2020 Kevin Conner <kconner@redhat.com> - 1.0.6-1
 - Bump version to 1.0.6
 

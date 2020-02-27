@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 4638b96d0091a41813043e6cee91d02f87d6e73c
+%global git_commit e9938ef4fd5a8b48dd0deea3bb276f18cded6e26
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.0.6
+Version:        1.0.8
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -521,6 +521,9 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
+* Tue Feb 25 2020 Kevin Conner <kconner@redhat.com> - 1.0.8-1
+- Bump version to 1.0.8
+
 * Sun Feb 2 2020 Kevin Conner <kconner@redhat.com> - 1.0.6-1
 - Bump version to 1.0.6
 
