@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 4638b96d0091a41813043e6cee91d02f87d6e73c
+%global git_commit b0f47f26fa67a352fc95db7ecd2af902d7879221
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.0.4
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -380,13 +380,24 @@ cp %{SOURCE2} ISTIO/src/istio.io/istio/buildinfo
 
 %build
 cd ISTIO
-export GOPATH=$(pwd):%{gopath}
+export GOPROXY=off
+export GOPATH=$(pwd):${GOPATH}
+
+export GOARCH=${GOARCH:-'amd64'}
+ISTIO_OUT=$(pwd)/out/linux_${GOARCH}/release
+HELM_VER=v2.10.0
+mkdir -p ${ISTIO_OUT}
+touch ${ISTIO_OUT}/version.helm.${HELM_VER}
+
+ENVOY=/tmp/envoy-dummy
+touch ${ENVOY}
+ 
 
 pushd src/istio.io/istio
-make pilot-discovery pilot-agent istioctl sidecar-injector mixc mixs citadel galley
+GOBUILDFLAGS="-mod=vendor" ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make pilot-discovery pilot-agent sidecar-injector mixc mixs istio_ca istioctl galley
 
 %if 0%{?with_test_binaries}
-make test-bins
+GOBUILDFLAGS="-mod=vendor" make test-bins
 %endif
 
 popd
@@ -444,11 +455,11 @@ cp -pav ISTIO/out/linux_amd64/release/{pilot-test-server,pilot-test-client,pilot
 %if 0%{?with_tests}
 
 %check
+export GOPATH=$(pwd):${GOPATH}
 cd ISTIO
-export GOPATH=$(pwd):%{gopath}
 pushd src/istio.io/istio
-make localTestEnv test
-make localTestEnvCleanup
+GOBUILDFLAGS="-mod=vendor" make localTestEnv test
+GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
 popd
 
 %endif
@@ -475,6 +486,27 @@ done
 sort -u -o devel.file-list devel.file-list
 %endif
 
+# add artifacts
+pushd ISTIO/src/istio.io/istio/
+
+mkdir -p $RPM_BUILD_ROOT/var/lib/istio/envoy
+pushd tools/packaging/common
+cp envoy_bootstrap_drain.json $RPM_BUILD_ROOT/var/lib/istio/envoy
+cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy
+cp istio-iptables.sh $RPM_BUILD_ROOT/usr/local/bin
+popd
+
+mkdir -p $RPM_BUILD_ROOT/etc/istio/proxy
+chmod g+w $RPM_BUILD_ROOT/etc/istio/proxy
+
+pushd pilot/docker
+cp envoy_pilot.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
+cp envoy_policy.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
+cp envoy_telemetry.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
+popd
+
+popd
+
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
 
@@ -487,6 +519,9 @@ sort -u -o devel.file-list devel.file-list
 
 %files pilot-agent
 %{_bindir}/pilot-agent
+%{_sysconfdir}/istio/proxy
+%{_localstatedir}/lib/istio/envoy
+%{_prefix}/bin
 
 %files istioctl
 %{_bindir}/istioctl
@@ -521,134 +556,5 @@ sort -u -o devel.file-list devel.file-list
 %endif
 
 %changelog
-* Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
-- Bump version to 1.0.4
-
-* Thu Oct 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.2-1
-- Updated to Maistra 1.0.2, Istio 1.1.17
-
-* Sun Sep 1 2019 Brian Avery <bavery@redhat.com> - 1.0.0
-- Updated to the Maistra 1.0.0 GA release
-
-* Mon Jul 22 2019 Brian Avery <bavery@redhat.com> - 1.0.0-rc1
-- Updated to Maistra 1.0.0
-
-* Mon Jul 15 2019 Brian Avery <bavery@redhat.com> - 0.12.0-4
-- Updated to Maistra 0.12 release
-
-* Mon Jun 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.12.0-3
-- Updated to latest Maistra 0.12
-
-* Wed Jun 12 2019 Brian Avery <bavery@redhat.com> - 0.12.0-2
-- Updated to Maistra 0.12/Istio 1.1.8
-
-* Tue Jun 11 2019 Brian Avery <bavery@redhat.com> - 0.12.0-1
-- Updated to Maistra 0.12/Istio 1.1.7
-
-* Mon May 27 2019 Kevin Conner <kconner@redhat.com> - 0.11.0-6
-- Include MAISTRA-443, MAISTRA-450, MAISTRA-448, MAISTRA-452
-
-* Fri May 24 2019 Kevin Conner <kconner@redhat.com> - 0.11.0-5
-- Include fixes for MAISTRA-439 and MAISTRA-434
-
-* Thu May 23 2019 Kevin Conner <kconner@redhat.com> - 0.11.0-4
-- Fixed Maistra 432 -- test failures related to 422
-
-* Wed May 22 2019 Brian Avery <bavery@redhat.com> - 0.11.0-3
-- Fixed Maistra 422 -- return meaningful resource versions
-
-* Mon May 20 2019 Brian Avery <bavery@redhat.com> - 0.11.0-2
-- Add support for multitenancy
-
-* Fri May 3 2019 Brian Avery <bavery@redhat.com> - 0.11.0-1
-- Update to Istio 1.1.5/Maistra 0.11
-
-* Thu Apr 11 2019 Kevin Conner <kconner@redhat.com> - 0.10.0-3
-- Update sidecar injector to create/monitor/update webhook configuration
-
-* Thu Apr 11 2019 Brian Avery <bavery@redhat.com> - 0.10.0-2
-- Update sidecar injector to create/monitor/update webhook configuration
-
-* Fri Mar 22 2019 Brian Avery <bavery@redhat.com> - 0.10.0-2
-- Updated to 1.1.1
-
-* Fri Mar 22 2019 Brian Avery <bavery@redhat.com> - 0.10.0-1
-- Updated to 1.1
-
-* Mon Mar 4 2019 Brian Avery <bavery@redhat.com> - 0.9.0-1
-- Updated to 1.1 rc 2
-
-* Sun Feb 17 2019 Kevin Conner <kconner@redhat.com> - 0.8.0-2
-- Include authz regex header matching
-
-* Wed Feb 13 2019 Kevin Conner <kconner@redhat.com> - 0.8.0-1
-- Updated to istio 1.1.0-snapshot.6 tag
-
-* Sun Jan 20 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-2
-- Updated to latest istio release-1.1 branch
-
-* Thu Jan 17 2019 Kevin Conner <kconner@redhat.com> - 0.7.0-1
-- Updated to istio release-1.1 branch and maistra 0.7.0
-
-* Wed Dec 19 2018 Kevin Conner <kconner@redhat.com> - 0.6.0
-- Updated to istio 1.0.5 and maistra 0.6.0
-
-* Thu Nov 29 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
-- Update to include support for envoy route update requests
-
-* Sat Nov 24 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
-- Update to include fix for RDS protocol race
-
-* Fri Nov 23 2018 Kevin Conner <kconner@redhat.com> - 0.5.0
-- Release update to maistra 0.5.0-2
-
-* Wed Nov 21 2018 Brian Avery <bavery@redhat.com> - 0.5.0
-- Release update to maistra 0.5.0-1
-
-* Mon Nov 19 2018 Brian Avery <bavery@redhat.com> - 0.5.0
-- Updated to istio 1.0.3 and maistra 0.5.0
-
-* Mon Oct 29 2018 Brian Avery <bavery@redhat.com> - 0.4.0
-- Updated to istio 1.0.3 and maistra 0.4.0
-
-* Fri Oct 12 2018 Brian Avery <bavery@redhat.com> - 0.3.0
-- Maistra 0.3.0 release, based on Istio 1.0.2
-
-* Wed Sep 12 2018 Brian Avery <bavery@redhat.com> - 0.2.0
-- Updated to istio 1.0.2 and maistra 0.2.0
-
-* Tue Sep 4 2018 Brian Avery <bavery@redhat.com> - 0.1.0
-- Stripped binaries
-
-* Tue Jul 24 2018 Brian Avery <bavery@redhat.com> - 1.0.0
-- Updated to 1.0.0-snapshot.2
-
-* Mon Jul 23 2018 Brian Avery <bavery@redhat.com> - 1.0.0
-- Updated to 1.0.0-snapshot.1
-
-* Fri Jun 29 2018 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.0
-- Updated to 1.0.0-snapshot.0
-
-* Wed Apr 18 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.8.0-0
-- Vendor is not a submodule anymore
-
-* Tue Apr 17 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.8.0-0rc1
-- Update to 0.8rc1
-
-* Thu Apr 5 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.7.1-2
-- Optionally run unit tests
-
-* Sat Mar 31 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.7.1-1
-- New version
-
-* Tue Mar 13 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.6.0-4
-- Fix the docker hub and version (tag)
-
-* Mon Mar 12 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.6.0-3
-- Use /usr/local as base dir, once upstream heavily depends on that
-
-* Tue Mar 6 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.6.0-2
-- Update buildinfo file. Now it will be updated by update.sh
-
-* Tue Feb 27 2018 Jonh Wendell <jonh.wendell@redhat.com> - 0.6.0-1
-- First package
+* Mon Mar 2 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
+- Update to Maistra 1.1.0, Istio 1.4.5
