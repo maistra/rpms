@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 0
+%global with_tests 1
 # Build test binaries
 %global with_test_binaries 0
 
@@ -13,8 +13,8 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit a94ef08e0075597d45ae706a36e693506fcac774
-%global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
+%global proxy_git_commit e885dd6880407edd27c81f8f42c5480a6d80751d
+%global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -23,18 +23,18 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum ef85b414d009b6ad8b688dc677eb56f7
+%global checksum ac4ec90d6ae15ca45a556e4c854b4ab0
 
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.0.4
+Version:        1.1.0
 Release:        1%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
 
-BuildRequires:  bazel = 0.22.0
+BuildRequires:  bazel = 1.1.0
 BuildRequires:  ninja-build
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -76,12 +76,15 @@ istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio p
 %build
 
 cd ..
+
+#execute build.sh
 FETCH_DIR= CREATE_ARTIFACTS= STRIP=false %{SOURCE1}
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 
+#strip binaries of unnecessary data
 binaries=(envoy)
 pushd ${RPM_BUILD_DIR}
 %if 0%{?with_debug}
@@ -131,6 +134,10 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 /usr/local/bin/envoy
 
 %changelog
+* Tue Feb 11 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
+- Updated to Istio 1.4 proxy
+- Added support for building based on SHA
+- Simplified repositories
 * Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
 - Bump version to 1.0.4
 

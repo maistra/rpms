@@ -1,9 +1,12 @@
-set -x 
+set -x
 set -e
 
+#if the user has Bazelisk installed, then USE_BAZEL_VERSION will fix the bazel
+#version. If not, error out.
 if [ -z "${BAZEL_VERSION}" ]; then
-  BAZEL_VERSION=0.28.1
+  BAZEL_VERSION=1.1.0
 fi
+export USE_BAZEL_VERSION=${BAZEL_VERSION}
 
 function check_dependencies() {
   RESULT=$(bazel version)
