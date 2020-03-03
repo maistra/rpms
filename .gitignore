@@ -1,5 +1,5 @@
 .build*
-*.tar.gz
-*.tar.xz
-*.rpm
+**/*.tar.gz
+**/*.tar.xz
+**/*.rpm
 

@@ -7,18 +7,18 @@
 %global debug_package %{nil}
 %endif
 
-%global git_commit a34d1c60dd3cd409edb31a9427133484d7fd370b
+%global git_commit 3010d6a9069b0820e637470a58d8869ef64d7541
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 Name:           prometheus
-Version:        2.7.2
-Release:        4%{?dist}
+Version:        2.14.0
+Release:        1%{?dist}
 Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
 
-BuildRequires:  prometheus-promu = 0.2.0
-BuildRequires:  golang >= 1.11
+BuildRequires:  prometheus-promu = 0.5.0
+BuildRequires:  golang >= 1.12
 
 Source0:        https://github.com/maistra/prometheus/archive/%{git_commit}.tar.gz
 
@@ -47,7 +47,7 @@ cd PROMETHEUS
 export GOPATH=$(pwd):%{gopath}
 cd src/github.com/prometheus/prometheus
 
-PROMU=$(which promu) make -e build
+PROMU=$(which promu) make -e common-build
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -56,7 +56,7 @@ mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{binary_name}/console_libraries/
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{binary_name}/consoles/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{binary_name}/
 
-binaries=(prometheus promtool)
+binaries=(prometheus promtool tsdbtool)
 cd PROMETHEUS/src/github.com/prometheus/prometheus
 %if 0%{?with_debug} > 0
   for i in "${binaries[@]}"; do
@@ -114,6 +114,7 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{bina
 %doc     PROMETHEUS/src/github.com/prometheus/prometheus/README.md
 %{_bindir}/prometheus
 %{_bindir}/promtool
+%{_bindir}/tsdbtool
 %{_datadir}/%{binary_name}/console_libraries/
 %{_sysconfdir}/%{binary_name}/console_libraries
 %{_datadir}/%{binary_name}/consoles/
@@ -121,6 +122,9 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{bina
 %config(noreplace) %{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 %changelog
+* Tue Jan 28 2020 Daniel Grimm <dgrimm@redhat.com> - 2.14.0-1
+- Update to Prometheus v2.14.0
+
 * Tue Nov 12 2019 Kevin Conner <kconner@redhat.com> - 2.7.2-4
 - Maistra 1.0.2 release
 
