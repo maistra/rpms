@@ -239,9 +239,8 @@ function create_tarball(){
   if [ "$CREATE_TARBALL" = "true" ]; then
     # create tarball
     pushd ${FETCH_DIR}
-      rm -rf proxy-full.tar.xz
-      tar cf proxy-full.tar ${PROXY_DIR} --atime-preserve
-      xz proxy-full.tar
+      rm -rf proxy-full.tar.gz
+      tar -czvf proxy-full.tar.gz ${PROXY_DIR} --atime-preserve
     popd
   fi
 }
