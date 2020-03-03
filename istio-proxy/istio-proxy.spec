@@ -23,7 +23,7 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum ac4ec90d6ae15ca45a556e4c854b4ab0
+%global checksum 206bb16c28a3b8a2b461a439e1a20166
 
 %global _prefix /usr/local
 
@@ -50,7 +50,7 @@ BuildRequires:  openssl
 BuildRequires:  openssl-devel
 BuildRequires:  libatomic
 
-Source0:        istio-proxy.%{checksum}.tar.xz
+Source0:        istio-proxy.%{checksum}.tar.gz
 Source1:        build.sh
 Source2:        test.sh
 Source3:        fetch.sh
@@ -76,7 +76,6 @@ istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio p
 %build
 
 cd ..
-
 #execute build.sh
 FETCH_DIR= CREATE_ARTIFACTS= STRIP=false %{SOURCE1}
 
@@ -138,41 +137,3 @@ TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
 - Updated to Istio 1.4 proxy
 - Added support for building based on SHA
 - Simplified repositories
-* Mon Jan 13 2020 Kevin Conner <kconner@redhat.com> - 1.0.4-1
-- Bump version to 1.0.4
-
-* Thu Oct 17 2019 Jonh Wendell <jonh.wendell@redhat.com> - 1.0.2-1
-- Updated to Maistra 1.0.2, Istio-Proxy 1.1.17
-
-* Thu Jul 18 2019 William DeCoste <wdecoste@redhat.com>
-  Release 1.0.0-0
-* Mon Jul 15 2019 Brian Avery <bavery@redhat.com>
-- Update to Maistra 0.12 release
-* Thu Jun 20 2019 William DeCoste <wdecoste@redhat.com>
-  Release 0.12.0-1
-* Tue Jun 11 2019 William DeCoste <wdecoste@redhat.com>
-  Release 0.12.0-0
-* Tue May 14 2019 William DeCoste <wdecoste@redhat.com>
-  Release 0.11.0-0
-* Thu Mar 07 2019 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.9.0-2
-* Mon Mar 04 2019 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.9.0-1
-* Thu Feb 14 2019 Kevin Conner <kconner@redhat.com>
-  Release 0.8.0-1
-* Sun Jan 20 2019 Kevin Conner <kconner@redhat.com>
-  Release 0.7.0-1
-* Thu Dec 20 2018 Kevin Conner <kconner@redhat.com>
-  Release 0.6.0-1
-* Wed Nov 21 2018 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.5.0-1
-* Mon Oct 29 2018 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.4.0-1
-* Fri Oct 12 2018 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.3.0-1
-* Wed Sep 12 2018 Dmitri Dolguikh <ddolguik@redhat.com>
-  Release 0.2.0-1
-* Tue Jul 31 2018 Dmitri Dolguikh <ddolguik@redhat.com>
-- Release 0.1.0-1
-* Mon Mar 5 2018 Bill DeCoste <wdecoste@redhat.com>
-- First package

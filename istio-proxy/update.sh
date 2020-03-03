@@ -38,12 +38,11 @@ function new_sources() {
 
     sed -i "s/%global checksum .*/%global checksum ${checksum}/" istio-proxy.spec
 
-    local checksumFilename=istio-proxy.${checksum}.tar.xz
+    local checksumFilename=istio-proxy.${checksum}.tar.gz
     mv $filename $checksumFilename
 
     echo
     echo "Updating sources file with ${checksumFilename}"
-
     sed -i "s/${filename}/${checksumFilename}/" sources
 }
 
@@ -53,8 +52,8 @@ function get_sources() {
     FETCH_DIR=/tmp CREATE_TARBALL=true PROXY_GIT_COMMIT_HASH=${proxy_sha} \
     ./fetch.sh
 
-    local tar_name=istio-proxy.${proxy_sha}.tar.xz
-    cp -p /tmp/proxy-full.tar.xz ${tar_name}
+    local tar_name=istio-proxy.${proxy_sha}.tar.gz
+    cp -p /tmp/proxy-full.tar.gz ${tar_name}
 
     new_sources ${tar_name}
 

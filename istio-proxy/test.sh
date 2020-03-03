@@ -3,7 +3,7 @@ set -e
 
 function set_default_envs() {
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
-    PROXY_GIT_BRANCH=maistra-1.0
+    PROXY_GIT_BRANCH=maistra-1.1
   fi
 
   if [ -z "${PROXY_NAME}" ]; then
@@ -47,11 +47,11 @@ function run_tests() {
         fi
 
         set_python_rules_date
-        bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --config=${BUILD_CONFIG} "//..."
+        bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
 
         if [ "${TEST_ENVOY}" == "true" ]; then
           set_python_rules_date
-          bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --run_under=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/external_tests.sh --config=${BUILD_CONFIG} "@envoy//test/..."
+          bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --run_under=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/external_tests.sh --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "@envoy//test/..."
         fi
       fi
     popd

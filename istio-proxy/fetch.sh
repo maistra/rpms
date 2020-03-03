@@ -2,6 +2,7 @@ set -x
 set -e
 
 PROXY_DIR=${PROXY_DIR:-istio-proxy}
+
 function check_envs() {
   if [ -z "$FETCH_DIR" ]; then
     echo "FETCH_DIR required. Please set"
@@ -39,6 +40,7 @@ function set_default_envs() {
   PROXY_GIT_REPO=https://github.com/maistra/proxy
 
   check_git_hash "Proxy" "PROXY_GIT_COMMIT_HASH"
+
 
   if [ -z "${CLEAN_FETCH}" ]; then
     CLEAN_FETCH=true
@@ -170,8 +172,6 @@ function fetch() {
     pushd ${PROXY_FETCH_DIR}
 
       extract_dependency "proxy" "${PROXY_GIT_REPO}" "${PROXY_GIT_COMMIT_HASH}"
-
-      use_local_go
       use_local_envoy
       add_patches
       copy_bazel_build_status
@@ -208,15 +208,15 @@ function fetch() {
 }
 
 function add_path_markers() {
-  pushd ${FETCH_DIR}/istio-proxy
+  pushd ${PROXY_FETCH_DIR}
     sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
-#    sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
+#sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
     find . -type f -name "CROSSTOOL" -exec sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" {} \;
   popd
 }
 
 function local_envoy_path_markers() {
-  pushd ${FETCH_DIR}/istio-proxy
+  pushd ${PROXY_FETCH_DIR}
     sed -i "s|${ENVOY_DIR}|BUILD_PATH_MARKER/envoy|" ./proxy/WORKSPACE
   popd
 }
@@ -294,25 +294,13 @@ function use_local_envoy(){
           }' \
       WORKSPACE
   popd
+  use_local_go
 }
 
 function add_BUILD_SCM_REVISIONS(){
   pushd ${PROXY_FETCH_DIR}/proxy
     sed -i "1i BUILD_SCM_REVISION=${BUILD_SCM_REVISION}\n" tools/bazel_get_workspace_status
   popd
-}
-
-# For devtoolset-7/8
-function strip_latomic(){
-  if [ "$STRIP_LATOMIC" = "true" ]; then
-    pushd ${CACHE_DIR}/base/external
-      find . -type f -name "configure.ac" -exec sed -i 's/-latomic//g' {} \;
-      find . -type f -name "CMakeLists.txt" -exec sed -i 's/-latomic//g' {} \;
-      find . -type f -name "configure" -exec sed -i 's/-latomic//g' {} \;
-      find . -type f -name "CROSSTOOL" -exec sed -i 's/-latomic//g' {} \;
-      find . -type f -name "envoy_build_system.bzl" -exec sed -i 's/-latomic//g' {} \;
-    popd
-  fi
 }
 
 function patch_class_memaccess() {
@@ -448,17 +436,6 @@ function remove_bad_declaration_order_test() {
   popd
 }
 
-function remove_bad_declaration_order_test() {
-  pushd ${PROXY_FETCH_DIR}/proxy
-    FILE="extensions/stats/BUILD"
-    DELETE_START_PATTERN="name = \"plugin_test\","
-    DELETE_STOP_PATTERN=")"
-    START_OFFSET="-1"
-    ADD_TEXT=""
-    replace_text
-  popd
-}
-
 preprocess_envs
 fetch
 patch_class_memaccess
@@ -472,7 +449,6 @@ add_path_markers
 #add_cxx_params
 replace_ssl
 add_BUILD_SCM_REVISIONS
-strip_latomic
 correct_links
 add_annobin_flags
 local_envoy_path_markers

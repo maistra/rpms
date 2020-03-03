@@ -3,7 +3,7 @@ set -e
 
 function set_default_envs() {
     if [ -z "${PROXY_GIT_BRANCH}" ]; then
-        PROXY_GIT_BRANCH=maistra-1.0
+        PROXY_GIT_BRANCH=maistra-1.1
     fi
     
     if [ -z "${PROXY_NAME}" ]; then
@@ -77,7 +77,7 @@ function run_build() {
     sed -i "s|BUILD_PATH_MARKER/envoy|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/envoy|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/WORKSPACE
     
     set_python_rules_date
-    RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --jobs=9 --force_pic=true --config=${BUILD_CONFIG} "//..."
+    RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --jobs=9 --force_pic=true --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
     
     popd
 }
