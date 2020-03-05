@@ -50,6 +50,10 @@ function new_sources() {
 function update_buildinfo() {
     local sha="$1"
     sed -i "s/buildGitRevision=.*/buildGitRevision=${sha}/" buildinfo
+
+		version=$(grep 'Version:' istio.spec | cut -d' ' -f9)
+
+		sed -i "s/istio.io\/istio\/pkg\/version.buildVersion=.*/istio.io\/istio\/pkg\/version.buildVersion=${version}/" buildinfo
 }
 
 update_commit "" "${ISTIO_SHA}"
