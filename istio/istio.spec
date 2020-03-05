@@ -376,6 +376,8 @@ mkdir -p ISTIO/src/istio.io/istio
 tar zxf %{SOURCE0} -C ISTIO/src/istio.io/istio --strip=1
 
 cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
+
+sed -i "s/istio.io\/istio\/pkg\/version.buildVersion=.*/istio.io\/istio\/pkg\/version.buildVersion="%{version}"/" %{SOURCE2}
 cp %{SOURCE2} ISTIO/src/istio.io/istio/buildinfo
 
 %build
@@ -391,7 +393,6 @@ touch ${ISTIO_OUT}/version.helm.${HELM_VER}
 
 ENVOY=/tmp/envoy-dummy
 touch ${ENVOY}
- 
 
 pushd src/istio.io/istio
 GOBUILDFLAGS="-mod=vendor" ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make pilot-discovery pilot-agent sidecar-injector mixc mixs istio_ca istioctl galley
