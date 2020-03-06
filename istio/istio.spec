@@ -377,7 +377,7 @@ tar zxf %{SOURCE0} -C ISTIO/src/istio.io/istio --strip=1
 
 cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
 
-sed -i "s/istio.io\/istio\/pkg\/version.buildVersion=.*/istio.io\/istio\/pkg\/version.buildVersion="%{version}"/" %{SOURCE2}
+sed -i "s/istio.io\/pkg\/version.buildVersion=.*/istio.io\/pkg\/version.buildVersion="%{version}"/" %{SOURCE2}
 cp %{SOURCE2} ISTIO/src/istio.io/istio/buildinfo
 
 %build
