@@ -2,5 +2,4 @@ istio.io/pkg/version.buildVersion=1.1.0
 istio.io/pkg/version.buildGitRevision=b0f47f26fa67a352fc95db7ecd2af902d7879221
 istio.io/pkg/version.buildUser=redhat
 istio.io/pkg/version.buildHost=redhat
-istio.io/pkg/version.buildDockerHub=docker.io/maistra
 istio.io/pkg/version.buildStatus=Clean
