@@ -493,7 +493,7 @@ pushd ISTIO/src/istio.io/istio/
 mkdir -p $RPM_BUILD_ROOT/var/lib/istio/envoy
 pushd tools/packaging/common
 cp envoy_bootstrap_drain.json $RPM_BUILD_ROOT/var/lib/istio/envoy
-cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy
+cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy/envoy_bootstrap_tmpl.json
 cp istio-iptables.sh $RPM_BUILD_ROOT/usr/local/bin
 popd
 
