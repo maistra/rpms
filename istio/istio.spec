@@ -2,10 +2,11 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
+
 # Run unit tests
 %global with_tests 0
-# Build test binaries
-%global with_test_binaries 0
+# Change this to an actual envoy binary when running tests
+%global ENVOY_PATH /tmp/envoy-dummy
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -170,23 +171,6 @@ all without requiring changes to the microservice code.
 This package contains the galley program.
 
 Galley is responsible for configuration management in Istio.
-
-%if 0%{?with_test_binaries}
-
-########### tests ###############
-%package pilot-tests
-Summary:  Istio Pilot Test Binaries
-Requires: istio = %{version}-%{release}
-
-%description pilot-tests
-Istio is an open platform that provides a uniform way to connect, manage
-and secure microservices. Istio supports managing traffic flows between
-microservices, enforcing access policies, and aggregating telemetry data,
-all without requiring changes to the microservice code.
-
-This package contains the binaries needed for pilot tests.
-
-%endif
 
 %if 0%{?with_devel}
 %package devel
@@ -390,17 +374,36 @@ HELM_VER=v2.10.0
 mkdir -p ${ISTIO_OUT}
 touch ${ISTIO_OUT}/version.helm.${HELM_VER}
 
-ENVOY=/tmp/envoy-dummy
+ENVOY="%{ENVOY_PATH}"
+echo "Using Envoy: ${ENVOY}"
 touch ${ENVOY}
 
+export GOBUILDFLAGS="-mod=vendor"
 pushd src/istio.io/istio
-GOBUILDFLAGS="-mod=vendor" ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make pilot-discovery pilot-agent sidecar-injector mixc mixs istio_ca istioctl galley
-
-%if 0%{?with_test_binaries}
-GOBUILDFLAGS="-mod=vendor" make test-bins
-%endif
-
+ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make build
 popd
+
+%if 0%{?with_tests}
+%check
+ENVOY="%{ENVOY_PATH}"
+if [ "${ENVOY}" == "/tmp/envoy-dummy" ]; then
+    echo
+    echo
+    echo "======================================================================================"
+    echo "Replace the ENVOY_PATH macro with an actual Envoy binary path before running the tests"
+    echo "======================================================================================"
+    echo
+    echo
+    exit 1
+fi
+
+cd ISTIO
+export GOPATH=$(pwd):${GOPATH}
+export GOBUILDFLAGS="-mod=vendor"
+pushd src/istio.io/istio
+make test
+popd
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -412,6 +415,7 @@ cd ISTIO/out/linux_amd64/release
 %if 0%{?with_debug}
     for i in "${binaries[@]}"; do
         cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+    done
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
@@ -447,22 +451,6 @@ cd ISTIO/out/linux_amd64/release
     done
 %endif
 popd
-
-%if 0%{?with_test_binaries}
-cp -pav ISTIO/out/linux_amd64/release/{pilot-test-server,pilot-test-client,pilot-test-eurekamirror} $RPM_BUILD_ROOT%{_bindir}/
-%endif
-
-%if 0%{?with_tests}
-
-%check
-export GOPATH=$(pwd):${GOPATH}
-cd ISTIO
-pushd src/istio.io/istio
-GOBUILDFLAGS="-mod=vendor" make localTestEnv test
-GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
-popd
-
-%endif
 
 # source codes for building projects
 %if 0%{?with_devel}
@@ -540,13 +528,6 @@ popd
 
 %files galley
 %{_bindir}/galley
-
-%if 0%{?with_test_binaries}
-%files pilot-tests
-%{_bindir}/pilot-test-server
-%{_bindir}/pilot-test-client
-%{_bindir}/pilot-test-eurekamirror
-%endif
 
 %if 0%{?with_devel}
 %files devel -f devel.file-list
