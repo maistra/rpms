@@ -57,3 +57,8 @@ function replace_text() {
   done <<< $START_LINES
 }
 
+function set_proxy_dirs() {
+  PROXY_DIR=${PROXY_DIR:-istio-proxy}
+  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
+}

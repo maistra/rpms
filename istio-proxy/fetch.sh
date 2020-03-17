@@ -1,17 +1,11 @@
 set -x
 set -e
 
-PROXY_DIR=${PROXY_DIR:-istio-proxy}
-
 function check_envs() {
   if [ -z "$FETCH_DIR" ]; then
     echo "FETCH_DIR required. Please set"
     exit 1
   fi
-
-  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
-  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
-  CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
 function check_git_hash() {
@@ -81,12 +75,14 @@ function set_default_envs() {
   if [ -z "${REPLACE_SSL}" ]; then
     REPLACE_SSL=true
   fi
+
+  source ${RPM_SOURCE_DIR}/common.sh
+  set_proxy_dirs
+  CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
 check_envs
 set_default_envs
-
-source ${RPM_SOURCE_DIR}/common.sh
 
 check_dependencies
 
@@ -283,16 +279,6 @@ function use_local_envoy(){
     sed -i 's|github.com/eile|github.com/mirror|' repository_locations.bzl
   popd
 
-  pushd ${PROXY_FETCH_DIR}/proxy
-    sed -i -e 's|/PATH/TO/ENVOY|'${ENVOY_DIR}'|' \
-      -e '/^http_archive/,/^)/ {
-            /^http_archive/,+5 s/^/#/
-          }' \
-      -e '/^#local_repository/,/^#)/ {
-            /^#local_repository/,+3 s/^#//
-          }' \
-      WORKSPACE
-  popd
   use_local_go
 }
 
@@ -315,7 +301,7 @@ function replace_ssl() {
 
     # re-fetch for updated dependencies
     pushd ${PROXY_FETCH_DIR}/proxy
-      bazel --output_base=${CACHE_DIR}/base --output_user_root=${CACHE_DIR}/root fetch //...
+      bazel --output_base=${CACHE_DIR}/base --output_user_root=${CACHE_DIR}/root fetch --override_repository=envoy=${ENVOY_DIR} //...
     popd
 
     prune

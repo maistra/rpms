@@ -29,14 +29,13 @@ function set_default_envs() {
     if [ -z "${STRIP}" ]; then
         STRIP="--strip-unneeded"
     fi
-    
+   
+    source ${RPM_SOURCE_DIR}/common.sh
+    set_proxy_dirs
     CACHE_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel
 }
 
 set_default_envs
-
-source ${RPM_SOURCE_DIR}/common.sh
-
 check_dependencies
 
 function copy_fetch() {
@@ -77,7 +76,7 @@ function run_build() {
     sed -i "s|BUILD_PATH_MARKER/envoy|${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/envoy|" ${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/WORKSPACE
     
     set_python_rules_date
-    RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --jobs=9 --force_pic=true --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
+    RECIPES_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME} bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root build --override_repository=envoy=${ENVOY_DIR} --jobs=9 --force_pic=true --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
     
     popd
 }
