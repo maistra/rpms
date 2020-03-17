@@ -2,10 +2,11 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
+
 # Run unit tests
 %global with_tests 0
-# Build test binaries
-%global with_test_binaries 0
+# Change this to an actual envoy binary when running tests
+%global ENVOY_PATH /tmp/envoy-dummy
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -13,7 +14,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit b0f47f26fa67a352fc95db7ecd2af902d7879221
+%global git_commit ef9a0d567296c0a1f08893653ee3227b8697eca8
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -170,23 +171,6 @@ all without requiring changes to the microservice code.
 This package contains the galley program.
 
 Galley is responsible for configuration management in Istio.
-
-%if 0%{?with_test_binaries}
-
-########### tests ###############
-%package pilot-tests
-Summary:  Istio Pilot Test Binaries
-Requires: istio = %{version}-%{release}
-
-%description pilot-tests
-Istio is an open platform that provides a uniform way to connect, manage
-and secure microservices. Istio supports managing traffic flows between
-microservices, enforcing access policies, and aggregating telemetry data,
-all without requiring changes to the microservice code.
-
-This package contains the binaries needed for pilot tests.
-
-%endif
 
 %if 0%{?with_devel}
 %package devel
@@ -376,7 +360,8 @@ mkdir -p ISTIO/src/istio.io/istio
 tar zxf %{SOURCE0} -C ISTIO/src/istio.io/istio --strip=1
 
 cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
-cp %{SOURCE2} ISTIO/src/istio.io/istio/buildinfo
+
+sed "s|istio.io/pkg/version\.buildVersion=.*|istio.io/pkg/version.buildVersion=Maistra_%{version}|" %{SOURCE2} > ISTIO/src/istio.io/istio/buildinfo
 
 %build
 cd ISTIO
@@ -389,18 +374,36 @@ HELM_VER=v2.10.0
 mkdir -p ${ISTIO_OUT}
 touch ${ISTIO_OUT}/version.helm.${HELM_VER}
 
-ENVOY=/tmp/envoy-dummy
+ENVOY="%{ENVOY_PATH}"
+echo "Using Envoy: ${ENVOY}"
 touch ${ENVOY}
- 
 
+export GOBUILDFLAGS="-mod=vendor"
 pushd src/istio.io/istio
-GOBUILDFLAGS="-mod=vendor" ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make pilot-discovery pilot-agent sidecar-injector mixc mixs istio_ca istioctl galley
-
-%if 0%{?with_test_binaries}
-GOBUILDFLAGS="-mod=vendor" make test-bins
-%endif
-
+ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make build
 popd
+
+%if 0%{?with_tests}
+%check
+ENVOY="%{ENVOY_PATH}"
+if [ "${ENVOY}" == "/tmp/envoy-dummy" ]; then
+    echo
+    echo
+    echo "======================================================================================"
+    echo "Replace the ENVOY_PATH macro with an actual Envoy binary path before running the tests"
+    echo "======================================================================================"
+    echo
+    echo
+    exit 1
+fi
+
+cd ISTIO
+export GOPATH=$(pwd):${GOPATH}
+export GOBUILDFLAGS="-mod=vendor"
+pushd src/istio.io/istio
+make test
+popd
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -412,6 +415,7 @@ cd ISTIO/out/linux_amd64/release
 %if 0%{?with_debug}
     for i in "${binaries[@]}"; do
         cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+    done
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
@@ -448,22 +452,6 @@ cd ISTIO/out/linux_amd64/release
 %endif
 popd
 
-%if 0%{?with_test_binaries}
-cp -pav ISTIO/out/linux_amd64/release/{pilot-test-server,pilot-test-client,pilot-test-eurekamirror} $RPM_BUILD_ROOT%{_bindir}/
-%endif
-
-%if 0%{?with_tests}
-
-%check
-export GOPATH=$(pwd):${GOPATH}
-cd ISTIO
-pushd src/istio.io/istio
-GOBUILDFLAGS="-mod=vendor" make localTestEnv test
-GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
-popd
-
-%endif
-
 # source codes for building projects
 %if 0%{?with_devel}
 install -d -p %{buildroot}/%{gopath}/src/%{import_path}/
@@ -492,7 +480,7 @@ pushd ISTIO/src/istio.io/istio/
 mkdir -p $RPM_BUILD_ROOT/var/lib/istio/envoy
 pushd tools/packaging/common
 cp envoy_bootstrap_drain.json $RPM_BUILD_ROOT/var/lib/istio/envoy
-cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy
+cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy/envoy_bootstrap_tmpl.json
 cp istio-iptables.sh $RPM_BUILD_ROOT/usr/local/bin
 popd
 
@@ -540,13 +528,6 @@ popd
 
 %files galley
 %{_bindir}/galley
-
-%if 0%{?with_test_binaries}
-%files pilot-tests
-%{_bindir}/pilot-test-server
-%{_bindir}/pilot-test-client
-%{_bindir}/pilot-test-eurekamirror
-%endif
 
 %if 0%{?with_devel}
 %files devel -f devel.file-list
