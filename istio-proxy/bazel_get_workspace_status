@@ -1,17 +1,4 @@
 #!/bin/bash
 
-if [ -z "${BUILD_SCM_REVISION}" ]; then
-  if git rev-parse --verify --quiet HEAD >/dev/null; then
-    BUILD_SCM_REVISION="$(git rev-parse --short --verify HEAD)"
-  else
-    exit 1
-  fi
-fi
-
-if [ -z "${BUILD_SCM_STATUS}" ]; then
-  BUILD_SCM_STATUS="Maistra"
-fi
-
-echo "BUILD_SCM_REVISION ${BUILD_SCM_REVISION}"
-echo "BUILD_SCM_STATUS ${BUILD_SCM_STATUS}"
-
+echo "BUILD_SCM_REVISION @REVISION@"
+echo "BUILD_SCM_STATUS Maistra @VERSION@"

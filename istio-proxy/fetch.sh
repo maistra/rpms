@@ -70,10 +70,6 @@ function set_default_envs() {
     FETCH_OR_BUILD=fetch
   fi
 
-  if [ -z "${BUILD_SCM_REVISION}" ]; then
-    BUILD_SCM_REVISION=$(date +%s)
-  fi
-
   if [ -z "${STRIP_LATOMIC}" ]; then
     STRIP_LATOMIC=true
   fi
@@ -146,10 +142,6 @@ function remove_build_artifacts() {
   rm -rf bazel/base/external/envoy_deps_cache_*
 }
 
-function copy_bazel_build_status(){
-  cp -f ${RPM_SOURCE_DIR}/bazel_get_workspace_status ${PROXY_FETCH_DIR}/proxy/tools/bazel_get_workspace_status
-}
-
 function replace_python() {
 
   pushd ${CACHE_DIR}
@@ -174,7 +166,6 @@ function fetch() {
       extract_dependency "proxy" "${PROXY_GIT_REPO}" "${PROXY_GIT_COMMIT_HASH}"
       use_local_envoy
       add_patches
-      copy_bazel_build_status
 
       bazel_dir="bazel"
       if [ "${DEBUG_FETCH}" == "true" ]; then
@@ -294,12 +285,6 @@ function use_local_envoy(){
       WORKSPACE
   popd
   use_local_go
-}
-
-function add_BUILD_SCM_REVISIONS(){
-  pushd ${PROXY_FETCH_DIR}/proxy
-    sed -i "1i BUILD_SCM_REVISION=${BUILD_SCM_REVISION}\n" tools/bazel_get_workspace_status
-  popd
 }
 
 function patch_class_memaccess() {
@@ -447,7 +432,6 @@ remove_build_artifacts
 add_path_markers
 #add_cxx_params
 replace_ssl
-add_BUILD_SCM_REVISIONS
 correct_links
 add_annobin_flags
 local_envoy_path_markers

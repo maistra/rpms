@@ -55,6 +55,7 @@ Source1:        build.sh
 Source2:        test.sh
 Source3:        fetch.sh
 Source4:        common.sh
+Source5:        bazel_get_workspace_status
 
 %description
 The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
@@ -72,6 +73,8 @@ istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio p
 
 %prep
 %setup -q -n %{name}
+
+sed -e "s/@REVISION@/%{proxy_git_commit}/" -e "s/@VERSION@/%{version}-%{release}/" %{SOURCE5} > proxy/tools/bazel_get_workspace_status
 
 %build
 
