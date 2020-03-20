@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:" opt; do
   esac
 done
 
-[[ -z "${PROMETHEUS_SHA}" ]] && PROMETHEUS_SHA="$(grep '%global git_commit ' prometheus.spec | cut -d' ' -f3)"
+PROMETHEUS_SHA=${PROMETHEUS_SHA:-"$(grep '%global git_commit ' prometheus.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local sha="$1"

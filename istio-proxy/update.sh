@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 function usage() {
     echo "Usage: $0 [-p <SHA of istio-proxy>]"
     echo
@@ -13,8 +17,7 @@ while getopts ":p:" opt; do
     esac
 done
 
-[[ -z "${PROXY_SHA}" ]] && PROXY_SHA="$(grep '%global proxy_git_commit ' istio-proxy.spec | cut -d' ' -f3)"
-
+PROXY_SHA=${PROXY_SHA-"$(grep '%global proxy_git_commit ' istio-proxy.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local proxy_sha=$1

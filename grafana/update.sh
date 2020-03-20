@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,10 +19,10 @@ while getopts ":v:" opt; do
   esac
 done
 
-[[ -z "${GRAFANA_VERSION}" ]] && GRAFANA_VERSION="$(egrep '^Version:' grafana.spec | awk '{print $2}')"
+GRAFANA_VERSION=${GRAFANA_VERSION:-"$(egrep '^Version:' grafana.spec | awk '{print $2}')"}
 
 sed -i -e '/^Version: / s+[0-9][0-9.]*$+'${GRAFANA_VERSION}'+' grafana.spec
-sed -i -e '/^\/grafana-[0-9][0-9.]*$/d' .gitignore
+sed -i -e '/^\/grafana-[0-9][0-9.]*$/d' .gitignore || true
 
 echo "/grafana-${GRAFANA_VERSION}" >> .gitignore
 

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:v:" opt; do
   esac
 done
 
-[[ -z "${ISTIO_OPERATOR_SHA}" ]] && ISTIO_OPERATOR_SHA="$(grep '%global git_commit ' istio-operator.spec | cut -d' ' -f3)"
+ISTIO_OPERATOR_SHA=${ISTIO_OPERATOR_SHA:="$(grep '%global git_commit ' istio-operator.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local prefix="$1"
@@ -38,7 +42,7 @@ function update_commit() {
     fi
 
     sed -i "s/%global ${prefix_spec}git_commit .*/%global ${prefix_spec}git_commit ${operator_sha}/" istio-operator.spec
-    NEW_SOURCES="${NEW_SOURCES} ${operator_filename} ${charts_filename}"
+    NEW_SOURCES="${NEW_SOURCES} ${operator_filename}"
 }
 
 function new_sources() {
