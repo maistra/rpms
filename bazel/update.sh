@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:v:" opt; do
   esac
 done
 
-[[ -z "${BAZEL_VERSION}" ]] && BAZEL_VERSION="$(grep 'Version: ' bazel.spec | cut -d' ' -f9)"
+BAZEL_VERSION=${BAZEL_VERSION:-"$(grep 'Version: ' bazel.spec | awk '{print $2}')"}
 
 function update_version() {
     local version="$2"
@@ -35,7 +39,7 @@ function update_version() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/Version: .*/Version:         ${version}/" bazel.spec.spec
+    sed -i "s/Version: .*/Version:        ${version}/" bazel.spec
     NEW_SOURCES="${NEW_SOURCES} ${filename}"
 }
 

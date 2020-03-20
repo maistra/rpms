@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:v:" opt; do
   esac
 done
 
-[[ -z "${ISTIO_CNI_SHA}" ]] && ISTIO_CNI_SHA="$(grep '%global git_commit ' istio-cni.spec | cut -d' ' -f3)"
+ISTIO_CNI_SHA=${ISTIO_CNI_SHA:-"$(grep '%global git_commit ' istio-cni.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local sha="$1"

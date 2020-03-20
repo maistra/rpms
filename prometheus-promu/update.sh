@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:" opt; do
   esac
 done
 
-[[ -z "${PROMU_VERSION}" ]] && PROMU_VERSION="$(grep 'Version: ' promu.spec | awk '{print $2}')"
+PROMU_VERSION=${PROMU_VERSION:-"$(grep 'Version: ' promu.spec | awk '{print $2}')"}
 
 function update_version() {
     local version="$1"

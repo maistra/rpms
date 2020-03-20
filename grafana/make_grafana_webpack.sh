@@ -13,18 +13,20 @@
 # for more details.
 #
 
+set -o pipefail
+set -e
+set -u
+set -x
+
 [ $# -ne 1 ] && echo "Usage: $0 version" && exit 1
 
 # grafana version (must be tagged on github.com/grafana/grafana as "v$VER")
 VER=$1
 BUILDDIR=`mktemp -d buildXXXXXX`
 
-which npm
-[ $? -ne 0 ] && echo Please install \"npm\" package && exit 1
-which wget
-[ $? -ne 0 ] && echo Please install \"wget\" package && exit 1 
-which git
-[ $? -ne 0 ] && echo Please install \"wgit\" package && exit 1 
+which npm || (echo Please install \"npm\" package && exit 1)
+which wget || (echo Please install \"wget\" package && exit 1)
+which git || (echo Please install \"git\" package && exit 1)
 
 # get src tree and set cwd
 echo Fetching pristine upstream git tagged branch for grafana version v$VER ...

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+
 NEW_SOURCES=""
 
 function usage() {
@@ -15,7 +19,7 @@ while getopts ":i:v:" opt; do
   esac
 done
 
-[[ -z "${IOR_SHA}" ]] && IOR_SHA="$(grep '%global git_commit ' ior.spec | cut -d' ' -f3)"
+IOR_SHA=${IOR_SHA:-"$(grep '%global git_commit ' ior.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local sha="$1"
