@@ -31,7 +31,7 @@ function extract_dependency() {
   local commit="$3"
 
   wget "${repo}/archive/${commit}.tar.gz"
-  tar xvf "${commit}.tar.gz"
+  tar xfz "${commit}.tar.gz"
   rm "${commit}.tar.gz"
   mv "${name}-${commit}" "${name}"
 }
@@ -240,7 +240,7 @@ function create_tarball(){
     # create tarball
     pushd ${FETCH_DIR}
       rm -rf proxy-full.tar.gz
-      tar -czvf proxy-full.tar.gz ${PROXY_DIR} --atime-preserve
+      tar czf proxy-full.tar.gz ${PROXY_DIR} --atime-preserve
     popd
   fi
 }
@@ -274,7 +274,7 @@ function use_local_envoy(){
     eval $(egrep '^ENVOY_SHA\>' ${WORKSPACE_FILE} | sed -e 's+ ++g')
     eval $(grep -w url ${WORKSPACE_FILE} | sed -e 's+ ++g' -e 's/+ENVOY_SHA+/\$ENVOY_SHA/' -e 's+,$++')
     curl -O -L $url
-    tar xf ${ENVOY_SHA}.tar.gz
+    tar xfz ${ENVOY_SHA}.tar.gz
     mv envoy-${ENVOY_SHA} envoy
     rm ${ENVOY_SHA}.tar.gz
   popd
