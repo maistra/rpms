@@ -1,6 +1,7 @@
 set -x
 set -e
 
+
 function set_default_envs() {
   if [ -z "${PROXY_GIT_BRANCH}" ]; then
     PROXY_GIT_BRANCH=maistra-1.1
@@ -26,13 +27,12 @@ function set_default_envs() {
     TEST_ENVOY=true
   fi
 
+  source ${RPM_SOURCE_DIR}/common.sh
+  set_proxy_dirs
   CACHE_DIR=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel
 }
 
 set_default_envs
-
-source ${RPM_SOURCE_DIR}/common.sh
-
 check_dependencies
 
 function run_tests() {
@@ -47,11 +47,11 @@ function run_tests() {
         fi
 
         set_python_rules_date
-        bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
+        bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --override_repository=envoy=${ENVOY_DIR} --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "//..."
 
         if [ "${TEST_ENVOY}" == "true" ]; then
           set_python_rules_date
-          bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --run_under=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/external_tests.sh --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "@envoy//test/..."
+          bazel --output_base=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/base --output_user_root=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/bazel/root test --override_repository=envoy=${ENVOY_DIR} --test_env=ENVOY_IP_TEST_VERSIONS=v4only --test_output=all --run_under=${RPM_BUILD_DIR}/${PROXY_NAME}-${PROXY_GIT_BRANCH}/${PROXY_NAME}/proxy/external_tests.sh --config=${BUILD_CONFIG} --host_javabase=@local_jdk//:jdk "@envoy//test/..."
         fi
       fi
     popd
