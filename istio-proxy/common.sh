@@ -8,6 +8,7 @@ if [ -z "${BAZEL_VERSION}" ]; then
 fi
 export USE_BAZEL_VERSION=${BAZEL_VERSION}
 
+
 function check_dependencies() {
   RESULT=$(bazel version)
   rm -rf ${HOME}/.cache/bazel
@@ -55,10 +56,4 @@ function replace_text() {
     ADDED_LINES=$(echo "${ADD_TEXT}" | wc -l)
     OFFSET=$((${OFFSET} + ${ADDED_LINES} - 2))
   done <<< $START_LINES
-}
-
-function set_proxy_dirs() {
-  PROXY_DIR=${PROXY_DIR:-istio-proxy}
-  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
-  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
 }
