@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global proxy_git_commit e885dd6880407edd27c81f8f42c5480a6d80751d
+%global proxy_git_commit b2327e0e1789451b65cf4af6a98d302c4a857f07
 %global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
@@ -23,13 +23,13 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum 5227f2f61c535d2a739a307f2102279b
+%global checksum 4b2c69108d0a09b0c6ec8420f9e8ea26
 
 %global _prefix /usr/local
 
 Name:           istio-proxy
 Version:        1.1.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy

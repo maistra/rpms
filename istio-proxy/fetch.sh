@@ -1,11 +1,17 @@
 set -x
 set -e
 
+PROXY_DIR=${PROXY_DIR:-istio-proxy}
+
 function check_envs() {
   if [ -z "$FETCH_DIR" ]; then
     echo "FETCH_DIR required. Please set"
     exit 1
   fi
+
+  PROXY_FETCH_DIR=${FETCH_DIR}/${PROXY_DIR}
+  ENVOY_DIR=${PROXY_FETCH_DIR}/envoy
+  CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
 function check_git_hash() {
@@ -75,14 +81,12 @@ function set_default_envs() {
   if [ -z "${REPLACE_SSL}" ]; then
     REPLACE_SSL=true
   fi
-
-  source ${RPM_SOURCE_DIR}/common.sh
-  set_proxy_dirs
-  CACHE_DIR=${PROXY_FETCH_DIR}/bazel
 }
 
 check_envs
 set_default_envs
+
+source ${RPM_SOURCE_DIR}/common.sh
 
 check_dependencies
 
@@ -206,7 +210,7 @@ function fetch() {
 function add_path_markers() {
   pushd ${PROXY_FETCH_DIR}
     sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/cc_wrapper.sh
-#sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
+    #sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" ./bazel/base/external/local_config_cc/CROSSTOOL
     find . -type f -name "CROSSTOOL" -exec sed -i "s|${PROXY_FETCH_DIR}/bazel|BUILD_PATH_MARKER/bazel|" {} \;
   popd
 }
@@ -245,7 +249,7 @@ function update_bazelrc(){
   pushd ${PROXY_FETCH_DIR}/proxy
     sed -i 's|build --host_force_python=PY2||g' .bazelrc
     sed -i 's|build --action_env=BAZEL_LINKLIBS=-l%:libstdc++.a||g' .bazelrc
-    sed -i 's|build --action_env=BAZEL_LINKOPTS=-lm:-static-libgcc||g' .bazelrc
+    sed -i 's|build --action_env=BAZEL_LINKOPTS=-lm||g' .bazelrc
   popd
 }
 
@@ -257,8 +261,8 @@ function add_cxx_params(){
 }
 
 function use_local_go(){
-  pushd ${PROXY_FETCH_DIR}/proxy
-    sed -i 's|go_register_toolchains(go_version = GO_VERSION)|go_register_toolchains(go_version="host")|g' WORKSPACE
+  pushd ${ENVOY_DIR}
+    sed -i 's/GO_VERSION[ ]*=.*/GO_VERSION="host"/g' bazel/dependency_imports.bzl
   popd
 }
 
