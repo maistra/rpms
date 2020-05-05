@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        1.1.0
+Version:        1.1.1
 Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
@@ -97,5 +97,8 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Mon May 4 2020 Kevin Conner <kconner@redhat.com> - 1.1.1-1
+- Release of 1.1.1-1
+
 * Tue Mar 31 2020 Jonh Wendell <jwendell@redhat.com> - 1.1.0-1
 - First 1.1 version
