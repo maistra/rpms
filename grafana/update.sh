@@ -15,7 +15,6 @@ function usage() {
 while getopts ":v:" opt; do
   case ${opt} in
     v) GRAFANA_VERSION="${OPTARG}";;
-    *) usage;;
   esac
 done
 
