@@ -507,9 +507,9 @@ popd
 
 %files pilot-agent
 %{_bindir}/pilot-agent
+%{_bindir}/istio-iptables.sh
 %{_sysconfdir}/istio/proxy
 %{_localstatedir}/lib/istio/envoy
-%{_prefix}/bin
 
 %files istioctl
 %{_bindir}/istioctl
