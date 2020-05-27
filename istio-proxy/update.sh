@@ -4,6 +4,8 @@ set -o pipefail
 set -e
 set -u
 
+PROXY_NAME=istio-proxy
+
 function usage() {
     echo "Usage: $0 [-i <SHA of proxy>]"
     echo
@@ -17,7 +19,7 @@ while getopts ":i:" opt; do
   esac
 done
 
-SHA=${SHA:-"$(grep '%global git_commit ' istio-proxy.spec | cut -d' ' -f3)"}
+SHA=${SHA:-"$(grep '%global git_commit ' ${PROXY_NAME}.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local sha="$1"
@@ -36,7 +38,7 @@ function update_commit() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" istio-proxy.spec
+    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" "${PROXY_NAME}.spec"
 	md5sum "${filename}" > sources
 }
 
