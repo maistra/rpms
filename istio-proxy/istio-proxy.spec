@@ -51,24 +51,14 @@ BuildRequires:  libatomic
 BuildRequires:  platform-python-devel
 
 Source0:        proxy-%{git_commit}.tar.gz
-Source10:       gn-20200319.tar.gz
 
 %description
 The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 
 %prep
 %setup -q -n proxy-%{git_commit}
-%setup -q -D -T -n proxy-%{git_commit} -a 10
 
 %build
-# BEGIN GN FIXME: Move GN to its own package?
-pushd gn
-export CXX=%{__cxx}
-python3 build/gen.py --no-static-libstdc++
-ninja -C out
-cp -f out/gn ../maistra/vendor/com_googlesource_chromium_v8/wee8/buildtools/linux64/gn
-popd
-# END GN
 
 # BEGIN Python workarounds
 mkdir -p "${HOME}/bin" && ln -s /usr/bin/python3 "${HOME}/bin/python"
@@ -85,7 +75,7 @@ if [ "${ARCH}" = "ppc64le" ]; then
   ARCH="ppc"
 fi
 
-export BUILD_SCM_REVISION="%{git_commit}"
+export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
 
 bazel build \
   --config=release \
@@ -152,7 +142,7 @@ if [ "${ARCH}" = "ppc64le" ]; then
   ARCH="ppc"
 fi
 
-export BUILD_SCM_REVISION="%{git_commit}"
+export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
 export PATH="${HOME}/bin:${PATH}"
 
 bazel test \

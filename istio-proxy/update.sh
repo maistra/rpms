@@ -22,7 +22,7 @@ SHA=${SHA:-"$(grep '%global git_commit ' istio-proxy.spec | cut -d' ' -f3)"}
 function update_commit() {
     local sha="$1"
 
-    local tarball="https://github.com/jwendell/proxy/archive/${sha}/proxy-${sha}.tar.gz"
+    local tarball="https://github.com/maistra/proxy/archive/${sha}/proxy-${sha}.tar.gz"
     local filename="proxy-${sha}.tar.gz"
 
     echo -n "Checking proxy...   "
