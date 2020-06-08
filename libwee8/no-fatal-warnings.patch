@@ -1,0 +1,21 @@
+diff -uNr wee8-orig/build/config/compiler/BUILD.gn wee8/build/config/compiler/BUILD.gn
+--- wee8-orig/build/config/compiler/BUILD.gn	1969-12-31 19:00:00.000000000 -0500
++++ wee8/build/config/compiler/BUILD.gn	2020-06-03 14:34:44.532865896 -0400
+@@ -46,7 +46,7 @@
+   # warnings with known toolchains. Allow overriding this e.g. for Chromium
+   # builds on Linux that could use a different version of the compiler.
+   # With GCC, warnings in no-Chromium code are always not treated as errors.
+-  treat_warnings_as_errors = true
++  treat_warnings_as_errors = false
+ 
+   # Normally, Android builds are lightly optimized, even for debug builds, to
+   # keep binary size down. Setting this flag to true disables such optimization
+@@ -75,7 +75,7 @@
+ 
+   # Enable fatal linker warnings. Building Chromium with certain versions
+   # of binutils can cause linker warning.
+-  fatal_linker_warnings = true
++  fatal_linker_warnings = false
+ 
+   # Build with C++ RTTI enabled. Chromium builds without RTTI by default,
+   # but some sanitizers are known to require it, like CFI diagnostics
