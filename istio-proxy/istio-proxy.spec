@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit f0a7a9aa0bdf07a31f1aac7d28ade00b6d2cf2be
+%global git_commit 9761e9ea55ca16aed8d2d341877106a4bdb5f1b3
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
@@ -27,7 +27,7 @@
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.1.3
+Version:        1.1.4
 Release:        1%{?dist}
 Summary:        Istio Proxy
 License:        ASL 2.0
@@ -49,6 +49,7 @@ BuildRequires:  openssl
 BuildRequires:  openssl-devel
 BuildRequires:  libatomic
 BuildRequires:  platform-python-devel
+BuildRequires:  libwee8
 
 Source0:        proxy-%{git_commit}.tar.gz
 
