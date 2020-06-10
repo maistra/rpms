@@ -4,68 +4,42 @@ set -o pipefail
 set -e
 set -u
 
-proxy_name=istio-proxy
+PROXY_NAME=istio-proxy
 
 function usage() {
-	echo "Usage: $0 [-p <SHA of istio-proxy>]"
-	echo
-	exit 0
+    echo "Usage: $0 [-i <SHA of proxy>]"
+    echo
+    exit 0
 }
 
-while getopts ":p:" opt; do
-	case ${opt} in
-		p) PROXY_SHA="${OPTARG}";;
-		*) usage;;
-	esac
+while getopts ":i:" opt; do
+  case ${opt} in
+    i) SHA="${OPTARG}";;
+    *) usage;;
+  esac
 done
 
-PROXY_SHA=${PROXY_SHA:-"$(grep '%global proxy_git_commit ' ${proxy_name}.spec | cut -d' ' -f3)"}
+SHA=${SHA:-"$(grep '%global git_commit ' ${PROXY_NAME}.spec | cut -d' ' -f3)"}
 
 function update_commit() {
-		local proxy_sha=$1
+    local sha="$1"
 
-		echo
-		echo "Updating spec file with Proxy SHA: ${proxy_sha}"
-    sed -i "s/%global proxy_git_commit .*/%global proxy_git_commit ${proxy_sha}/" ${proxy_name}.spec
+    local tarball="https://github.com/maistra/proxy/archive/${sha}/proxy-${sha}.tar.gz"
+    local filename="proxy-${sha}.tar.gz"
 
+    echo -n "Checking proxy...   "
+    if [ ! -f "${filename}" ]; then
+        echo "Downloading ${tarball}"
+        if ! curl -Lfs "${tarball}" -o "${filename}"; then
+            echo "Error downloading tarball, exiting."
+            exit 1
+        fi
+    else
+        echo "Already on disk, download not necessary"
+    fi
+
+    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" "${PROXY_NAME}.spec"
+	md5sum "${filename}" > sources
 }
 
-#update_bazel_version checks ${proxy_name}.spec for the specified bazel version and updates common.sh
-function update_bazel_version() {
-    bazelVersion=$(grep 'BuildRequires:  bazel =' ${proxy_name}.spec | cut -d ' ' -f5)
-    sed -i "s/^[ ]*BAZEL_VERSION=.*/  BAZEL_VERSION=${bazelVersion}/" common.sh
-}
-
-function new_sources() {
-	local filename=$1
-
-	md5sum ${filename} > sources
-	local checksum=$(awk '{print $1}' sources)
-
-	sed -i "s/%global checksum .*/%global checksum ${checksum}/" ${proxy_name}.spec
-
-	local checksumFilename=${proxy_name}.${checksum}.tar.gz
-	mv $filename $checksumFilename
-
-	echo
-	echo "Updating sources file with ${checksumFilename}"
-	sed -i "s/${filename}/${checksumFilename}/" sources
-}
-
-function get_sources() {
-	local proxy_sha=$1
-
-	FETCH_DIR=/tmp CREATE_TARBALL=true \
-	PROXY_DIR=istio-proxy PROXY_GIT_COMMIT_HASH=${proxy_sha} \
-	./fetch.sh
-
-	local tar_name=${proxy_name}.${proxy_sha}.tar.gz
-	cp -p /tmp/proxy-full.tar.gz ${tar_name}
-
-	new_sources ${tar_name}
-
-}
-
-update_commit "${PROXY_SHA}"
-update_bazel_version
-get_sources "${PROXY_SHA}"
+update_commit "${SHA}"
