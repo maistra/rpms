@@ -13,8 +13,8 @@
 %global debug_package   %{nil}
 %endif
 
-%global proxy_git_commit b2327e0e1789451b65cf4af6a98d302c4a857f07
-%global proxy_shortcommit  %(c=%{proxy_git_commit}; echo ${c:0:7})
+%global git_commit f1f6305b85c79af337e5b1e6f42ef753b1cfcdd7
+%global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -23,25 +23,24 @@
 %global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
-%global checksum 895db3fcc7bdbb0da8b6e56fce996d75
-
+# Use /usr/local as base dir, once upstream heavily depends on that
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.1.1
+Version:        1.2.0
 Release:        1%{?dist}
-Summary:        The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
+Summary:        Istio Proxy
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
 
-BuildRequires:  bazel = 1.1.0
+BuildRequires:  bazel = 2.2.0
 BuildRequires:  ninja-build
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  make
 BuildRequires:  patch
-BuildRequires:  ksh
 BuildRequires:  xz
+BuildRequires:  git
 BuildRequires:  golang
 BuildRequires:  automake
 BuildRequires:  python3
@@ -49,35 +48,43 @@ BuildRequires:  cmake3
 BuildRequires:  openssl
 BuildRequires:  openssl-devel
 BuildRequires:  libatomic
+BuildRequires:  platform-python-devel
 
-Source0:        istio-proxy.%{checksum}.tar.gz
-Source1:        build.sh
-Source2:        test.sh
-Source3:        fetch.sh
-Source4:        common.sh
+Source0:        proxy-%{git_commit}.tar.gz
 
 %description
 The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 
-########### istio-proxy ###############
-%package istio-proxy
-Summary:  The istio envoy proxy
-
-%description istio-proxy
-The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
-
-This package contains the envoy program.
-
-istio-proxy is the proxy required by the Istio Pilot Agent that talks to Istio pilot
-
 %prep
-%setup -q -n %{name}
+%setup -q -n proxy-%{git_commit}
 
 %build
 
-cd ..
-#execute build.sh
-FETCH_DIR= CREATE_ARTIFACTS= STRIP=false %{SOURCE1}
+# BEGIN Python workarounds
+mkdir -p "${HOME}/bin" && ln -s /usr/bin/python3 "${HOME}/bin/python"
+export PATH="${HOME}/bin:${PATH}"
+pathfix.py -pn -i %{__python3} maistra/vendor >/dev/null 2>&1
+# END Python workarounds
+
+# Fix path to the vendor deps
+sed -i "s|=/work/|=$(pwd)/|" maistra/bazelrc-vendor
+
+# MultiArch
+ARCH=$(uname -p)
+if [ "${ARCH}" = "ppc64le" ]; then
+  ARCH="ppc"
+fi
+
+export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
+
+bazel build \
+  --config=release \
+  --config=${ARCH} \
+  --local_resources 12288,6.0,1.0 \
+  --jobs=6 \
+  //src/envoy:envoy
+
+cp bazel-bin/src/envoy/envoy ${RPM_BUILD_DIR}
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -86,30 +93,32 @@ mkdir -p $RPM_BUILD_ROOT%{_bindir}
 #strip binaries of unnecessary data
 binaries=(envoy)
 pushd ${RPM_BUILD_DIR}
+
 %if 0%{?with_debug}
     for i in "${binaries[@]}"; do
         cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
+    done
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
 
         echo "Dumping dynamic symbols for ${i}"
         nm -D $i --format=posix --defined-only \
-  | awk '{ print $1 }' | sort > dynsyms
+          | awk '{ print $1 }' | sort > dynsyms
 
         echo "Dumping function symbols for ${i}"
-       nm $i --format=posix --defined-only \
-  | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
-  | sort > funcsyms
+        nm $i --format=posix --defined-only \
+          | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' \
+          | sort > funcsyms
 
         echo "Grabbing other function symbols from ${i}"
         comm -13 dynsyms funcsyms > keep_symbols
 
 
-	COMPRESSED_NAME="${i}_debuginfo"
+        COMPRESSED_NAME="${i}_debuginfo"
         echo "remove unnecessary debug info from ${i}"
         objcopy -S --remove-section .gdb_index --remove-section .comment \
-  --keep-symbols=keep_symbols "${i}" "${COMPRESSED_NAME}"
+          --keep-symbols=keep_symbols "${i}" "${COMPRESSED_NAME}"
 
         echo "stripping: ${i}"
         strip -o "stripped/${i}" -s $i
@@ -125,18 +134,30 @@ pushd ${RPM_BUILD_DIR}
 %endif
 popd
 
+%if 0%{?with_tests}
 %check
-cd ..
-TEST_ENVOY=false RUN_TESTS=true %{SOURCE2}
+# MultiArch
+ARCH=$(uname -p)
+if [ "${ARCH}" = "ppc64le" ]; then
+  ARCH="ppc"
+fi
+
+export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
+export PATH="${HOME}/bin:${PATH}"
+
+bazel test \
+  --config=release \
+  --config=${ARCH} \
+  --local_resources 12288,6.0,1.0 \
+  --jobs=6 \
+  //src/...
+
+%endif
 
 %files
 /usr/local/bin/envoy
 
 %changelog
-* Mon May 4 2020 Kevin Conner <kconner@redhat.com> - 1.1.1-1
-- Release of 1.1.1-1
-
-* Tue Feb 11 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
-- Updated to Istio 1.4 proxy
-- Added support for building based on SHA
-- Simplified repositories
+* Wed Jun 10 2020 Jonh Wendell <jwendell@redhat.com> - 1.2.0-1
+- Simplify build system
+- Bump to 1.2
