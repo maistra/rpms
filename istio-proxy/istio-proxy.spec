@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit f0a7a9aa0bdf07a31f1aac7d28ade00b6d2cf2be
+%global git_commit ae5c56fd21eec2c22c3241b83c50695787a0468d
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
@@ -28,7 +28,7 @@
 
 Name:           istio-proxy
 Version:        1.1.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Istio Proxy
 License:        ASL 2.0
 URL:            https://github.com/Maistra/proxy
@@ -158,6 +158,9 @@ bazel test \
 /usr/local/bin/envoy
 
 %changelog
+* Sun Jun 21 2020 Kevin Conner <kconner@redhat.com> - 1.1.3-2
+- Release of 1.1.3-2
+
 * Thu May 21 2020 Jonh Wendell <jwendell@redhat.com> - 1.1.3-1
 - Simplify build system
 

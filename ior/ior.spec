@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        1.1.1
+Version:        1.1.3
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -87,6 +87,9 @@ cd IOR/src/%{provider_prefix}
 %{_bindir}/ior
 
 %changelog
+* Sun Jun 21 2020 Kevin Conner <kconner@redhat.com> - 1.1.3-1
+- Release of 1.1.3-1
+
 * Mon May 4 2020 Kevin Conner <kconner@redhat.com> - 1.1.1-1
 - Release of 1.1.1-1
 
