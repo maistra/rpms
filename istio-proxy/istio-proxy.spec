@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit f1f6305b85c79af337e5b1e6f42ef753b1cfcdd7
+%global git_commit 327e423863f85c4709b1734029898d08a4e2dd48
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
