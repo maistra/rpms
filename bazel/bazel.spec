@@ -1,24 +1,19 @@
-# they warn against doing this ... :-\
-%define _disable_source_fetch 0
-# make sure that internet access is enabled during the build
-
 Name:           bazel
-Version:        0.22.0
-Release:        2%{?dist}
+Version:        2.2.0
+Release:        1%{?dist}
 Summary:        Correct, reproducible, and fast builds for everyone.
 License:        Apache License 2.0
-URL:            http://bazel.io/
+URL:            https://www.bazel.build/
 Source0:        https://github.com/bazelbuild/bazel/releases/download/%{version}/bazel-%{version}-dist.zip
 
-ExclusiveArch:  x86_64
 
 BuildRequires:  unzip 
-BuildRequires:  java-1.8.0-openjdk-devel
+BuildRequires:  java-11-openjdk-devel
 BuildRequires:  zlib-devel
 BuildRequires:  pkgconfig(bash-completion)
 BuildRequires:  python3
 BuildRequires:  gcc-c++
-Requires:       java-1.8.0-openjdk-devel
+Requires:       java-11-openjdk-devel
 
 %define debug_package %{nil}
 %define __os_install_post %{nil}
@@ -30,16 +25,15 @@ Correct, reproducible, and fast builds for everyone.
 %setup -q -c -n %{name}-%{version}-dist
 
 %build
+# BEGIN Python workarounds
+mkdir -p "${HOME}/bin" && ln -s /usr/bin/python3 "${HOME}/bin/python"
+export PATH="${HOME}/bin:${PATH}"
+# END Python workarounds
 
-which g++
-g++ --version
+export CC=gcc CXX=g++
+export EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk --host_force_python=PY3"
 
-mkdir PYTHON && ln -s /usr/bin/python3 PYTHON/python
-export PATH=$(pwd)/PYTHON:${PATH}
-
-CC=gcc
-CXX=g++
-env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" ./compile.sh
+./compile.sh
 ./output/bazel shutdown
 
 %install
@@ -55,14 +49,5 @@ rm -rf %{buildroot}
 
 
 %changelog
-* Wed Oct 16 2019 Jonh Wendell <jonh.wendell@redhat.com> - 0.22.0-2
-- Use Python 3
-
-* Wed Feb 13 2019 Kevin Conner <kconner@redhat.com> 0.22.0-1
-- Release 0.20.1-1
-* Tue Jan 15 2019 Kevin Conner <kconner@redhat.com> 0.20.0-1
-- Release 0.20.1-1
-* Wed Aug 1  2018 Dmitri Dolguikh <ddolguik@redhat.com> 0.15.2-1
-- Release 0.15.2-1
-* Wed Mar 14 2018 William DeCoste <wdecoste@redhat.com> 0.11.1-1
-- Initial from vbatts copr
+* Wed Jun 10 2020 Jonh Wendell <jwendell@redhat.com> - 2.2.0-1
+- Bump to 2.2.0

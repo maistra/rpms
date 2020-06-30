@@ -19,7 +19,7 @@ while getopts ":i:" opt; do
   esac
 done
 
-PROMU_VERSION=${PROMU_VERSION:-"$(grep 'Version: ' promu.spec | awk '{print $2}')"}
+PROMU_VERSION=${PROMU_VERSION:-"$(grep 'Version: ' prometheus-promu.spec | awk '{print $2}')"}
 
 function update_version() {
     local version="$1"
@@ -39,7 +39,7 @@ function update_version() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/Version:        .*/Version:        ${version}/" promu.spec
+    sed -i "s/Version:        .*/Version:        ${version}/" prometheus-promu.spec
     NEW_SOURCES="${NEW_SOURCES} ${filename}"
 }
 
