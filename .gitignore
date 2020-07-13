@@ -7,3 +7,4 @@ ior/IOR
 istio-cni/istio-cni
 istio-operator/OPERATOR
 bazel-*.zip
+libwee8/wee8
