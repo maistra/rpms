@@ -39,6 +39,11 @@ Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_c
 Source1:        istiorc
 Source2:        buildinfo
 
+
+# Patches to make build pass
+Patch1: 0001-Disable-wasm-download-until-we-re-ready-for-it.patch
+
+
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
@@ -380,6 +385,7 @@ touch ${ENVOY}
 
 export GOBUILDFLAGS="-mod=vendor"
 pushd src/istio.io/istio
+%patch1 -p1
 ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make build
 popd
 
