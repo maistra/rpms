@@ -1,0 +1,17 @@
+diff --git a/pkg/extensions/main.go b/pkg/extensions/main.go
+index a88f67ff9e..7844aa1227 100644
+--- a/pkg/extensions/main.go
++++ b/pkg/extensions/main.go
+@@ -9,10 +9,10 @@ import (
+ 	"github.com/grafana/grafana/pkg/registry"
+ 	"github.com/grafana/grafana/pkg/services/licensing"
+ 	_ "github.com/jung-kurt/gofpdf"
+-	_ "github.com/linkedin/goavro/v2"
++	_ "github.com/linkedin/goavro"
+ 	_ "github.com/pkg/errors"
+ 	_ "github.com/robfig/cron"
+-	_ "github.com/robfig/cron/v3"
++	_ "gopkg.in/robfig/cron.v3"
+ 	_ "github.com/stretchr/testify/require"
+ 	_ "gopkg.in/square/go-jose.v2"
+ )

@@ -1,5 +1,5 @@
 diff --git a/pkg/cmd/grafana-server/server.go b/pkg/cmd/grafana-server/server.go
-index 85d6db43ed..6de99b58bf 100644
+index 0dace4ebab..f1a4bfde53 100644
 --- a/pkg/cmd/grafana-server/server.go
 +++ b/pkg/cmd/grafana-server/server.go
 @@ -23,7 +23,6 @@ import (
@@ -12,10 +12,10 @@ index 85d6db43ed..6de99b58bf 100644
  	"github.com/grafana/grafana/pkg/login/social"
 diff --git a/pkg/infra/tracing/tracing.go b/pkg/infra/tracing/tracing.go
 deleted file mode 100644
-index d1511a5334..0000000000
+index 923459786b..0000000000
 --- a/pkg/infra/tracing/tracing.go
 +++ /dev/null
-@@ -1,148 +0,0 @@
+@@ -1,161 +0,0 @@
 -package tracing
 -
 -import (
@@ -56,7 +56,7 @@ index d1511a5334..0000000000
 -	ts.parseSettings()
 -
 -	if ts.enabled {
--		ts.initGlobalTracer()
+-		return ts.initGlobalTracer()
 -	}
 -
 -	return nil
@@ -80,7 +80,7 @@ index d1511a5334..0000000000
 -	ts.disableSharedZipkinSpans = section.Key("disable_shared_zipkin_spans").MustBool(false)
 -}
 -
--func (ts *TracingService) initGlobalTracer() error {
+-func (ts *TracingService) initJaegerCfg() (jaegercfg.Configuration, error) {
 -	cfg := jaegercfg.Configuration{
 -		ServiceName: "grafana",
 -		Disabled:    !ts.enabled,
@@ -92,6 +92,19 @@ index d1511a5334..0000000000
 -			LogSpans:           false,
 -			LocalAgentHostPort: ts.address,
 -		},
+-	}
+-
+-	_, err := cfg.FromEnv()
+-	if err != nil {
+-		return cfg, err
+-	}
+-	return cfg, nil
+-}
+-
+-func (ts *TracingService) initGlobalTracer() error {
+-	cfg, err := ts.initJaegerCfg()
+-	if err != nil {
+-		return err
 -	}
 -
 -	jLogger := &jaegerLogWrapper{logger: log.New("jaeger")}
@@ -120,7 +133,7 @@ index d1511a5334..0000000000
 -		return err
 -	}
 -
--	opentracing.InitGlobalTracer(tracer)
+-	opentracing.SetGlobalTracer(tracer)
 -
 -	ts.closer = closer
 -
@@ -166,13 +179,18 @@ index d1511a5334..0000000000
 -}
 diff --git a/pkg/infra/tracing/tracing_test.go b/pkg/infra/tracing/tracing_test.go
 deleted file mode 100644
-index 27e4de777a..0000000000
+index a6d71cf165..0000000000
 --- a/pkg/infra/tracing/tracing_test.go
 +++ /dev/null
-@@ -1,36 +0,0 @@
+@@ -1,94 +0,0 @@
 -package tracing
 -
--import "testing"
+-import (
+-	"github.com/stretchr/testify/assert"
+-	"github.com/stretchr/testify/require"
+-	"os"
+-	"testing"
+-)
 -
 -func TestGroupSplit(t *testing.T) {
 -	tests := []struct {
@@ -200,9 +218,62 @@ index 27e4de777a..0000000000
 -		tags := splitTagSettings(test.input)
 -		for k, v := range test.expected {
 -			value, exists := tags[k]
--			if !exists || value != v {
--				t.Errorf("tags does not match %v ", test)
--			}
+-			assert.Truef(t, exists, "Tag %q not found for input %q", k, test.input)
+-			assert.Equalf(t, v, value, "Tag %q has wrong value for input %q", k, test.input)
 -		}
 -	}
+-}
+-
+-func TestInitJaegerCfg_Default(t *testing.T) {
+-	ts := &TracingService{}
+-	cfg, err := ts.initJaegerCfg()
+-	require.NoError(t, err)
+-
+-	assert.True(t, cfg.Disabled)
+-}
+-
+-func TestInitJaegerCfg_Enabled(t *testing.T) {
+-	ts := &TracingService{enabled: true}
+-	cfg, err := ts.initJaegerCfg()
+-	require.NoError(t, err)
+-
+-	assert.False(t, cfg.Disabled)
+-	assert.Equal(t, "localhost:6831", cfg.Reporter.LocalAgentHostPort)
+-}
+-
+-func TestInitJaegerCfg_DisabledViaEnv(t *testing.T) {
+-	os.Setenv("JAEGER_DISABLED", "true")
+-	defer func() {
+-		os.Unsetenv("JAEGER_DISABLED")
+-	}()
+-
+-	ts := &TracingService{enabled: true}
+-	cfg, err := ts.initJaegerCfg()
+-	require.NoError(t, err)
+-
+-	assert.True(t, cfg.Disabled)
+-}
+-
+-func TestInitJaegerCfg_EnabledViaEnv(t *testing.T) {
+-	os.Setenv("JAEGER_DISABLED", "false")
+-	defer func() {
+-		os.Unsetenv("JAEGER_DISABLED")
+-	}()
+-
+-	ts := &TracingService{enabled: false}
+-	cfg, err := ts.initJaegerCfg()
+-	require.NoError(t, err)
+-
+-	assert.False(t, cfg.Disabled)
+-}
+-
+-func TestInitJaegerCfg_InvalidEnvVar(t *testing.T) {
+-	os.Setenv("JAEGER_DISABLED", "totallybogus")
+-	defer func() {
+-		os.Unsetenv("JAEGER_DISABLED")
+-	}()
+-
+-	ts := &TracingService{}
+-	_, err := ts.initJaegerCfg()
+-	require.EqualError(t, err, "cannot parse env var JAEGER_DISABLED=totallybogus: strconv.ParseBool: parsing \"totallybogus\": invalid syntax")
 -}

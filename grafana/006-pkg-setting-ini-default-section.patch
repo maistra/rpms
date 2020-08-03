@@ -1,0 +1,13 @@
+diff --git a/pkg/setting/setting.go b/pkg/setting/setting.go
+index 19181be84e..9a745f67e4 100644
+--- a/pkg/setting/setting.go
++++ b/pkg/setting/setting.go
+@@ -387,7 +387,7 @@ func applyCommandLineDefaultProperties(props map[string]string, file *ini.File)
+ func applyCommandLineProperties(props map[string]string, file *ini.File) {
+ 	for _, section := range file.Sections() {
+ 		sectionName := section.Name() + "."
+-		if section.Name() == ini.DefaultSection {
++		if section.Name() == ini.DEFAULT_SECTION {
+ 			sectionName = ""
+ 		}
+ 		for _, key := range section.Keys() {

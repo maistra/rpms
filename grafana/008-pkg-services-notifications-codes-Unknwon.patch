@@ -1,0 +1,13 @@
+diff --git a/pkg/services/notifications/codes.go b/pkg/services/notifications/codes.go
+index ae66aa1d1b..bfb95560fe 100644
+--- a/pkg/services/notifications/codes.go
++++ b/pkg/services/notifications/codes.go
+@@ -6,7 +6,7 @@ import (
+ 	"fmt"
+ 	"time"
+ 
+-	"github.com/unknwon/com"
++	"github.com/Unknwon/com"
+ 
+ 	"github.com/grafana/grafana/pkg/models"
+ 	"github.com/grafana/grafana/pkg/setting"

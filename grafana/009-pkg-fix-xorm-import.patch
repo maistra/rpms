@@ -1,0 +1,288 @@
+diff --git a/pkg/services/sqlstore/datasource.go b/pkg/services/sqlstore/datasource.go
+index c84f6bb948..414e343a63 100644
+--- a/pkg/services/sqlstore/datasource.go
++++ b/pkg/services/sqlstore/datasource.go
+@@ -5,7 +5,7 @@ import (
+ 	"github.com/grafana/grafana/pkg/components/simplejson"
+	"github.com/grafana/grafana/pkg/models"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 
+ 	"github.com/grafana/grafana/pkg/bus"
+ 	"github.com/grafana/grafana/pkg/components/securejsondata"
+diff --git a/pkg/services/sqlstore/logger.go b/pkg/services/sqlstore/logger.go
+index 498c2b58c1..850e10cd21 100644
+--- a/pkg/services/sqlstore/logger.go
++++ b/pkg/services/sqlstore/logger.go
+@@ -5,7 +5,7 @@ import (
+ 
+ 	glog "github.com/grafana/grafana/pkg/infra/log"
+ 
+-	"github.com/go-xorm/core"
++	"xorm.io/core"
+ )
+ 
+ type XormLogger struct {
+diff --git a/pkg/services/sqlstore/migrations/annotation_mig.go b/pkg/services/sqlstore/migrations/annotation_mig.go
+index 3ec5df841e..505ab5cf6e 100644
+--- a/pkg/services/sqlstore/migrations/annotation_mig.go
++++ b/pkg/services/sqlstore/migrations/annotation_mig.go
+@@ -1,7 +1,7 @@
+ package migrations
+ 
+ import (
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
+ )
+ 
+diff --git a/pkg/services/sqlstore/migrations/migrations_test.go b/pkg/services/sqlstore/migrations/migrations_test.go
+index 62ecbaad11..a9a3b38e62 100644
+--- a/pkg/services/sqlstore/migrations/migrations_test.go
++++ b/pkg/services/sqlstore/migrations/migrations_test.go
+@@ -3,7 +3,7 @@ package migrations
+ import (
+ 	"testing"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
+ 	"github.com/grafana/grafana/pkg/services/sqlstore/sqlutil"
+ 
+diff --git a/pkg/services/sqlstore/migrations/user_mig.go b/pkg/services/sqlstore/migrations/user_mig.go
+index 53110fe49b..e1a54a57bf 100644
+--- a/pkg/services/sqlstore/migrations/user_mig.go
++++ b/pkg/services/sqlstore/migrations/user_mig.go
+@@ -3,7 +3,7 @@ package migrations
+ import (
+ 	"fmt"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
+ 	"github.com/grafana/grafana/pkg/util"
+ )
+diff --git a/pkg/services/sqlstore/migrator/column.go b/pkg/services/sqlstore/migrator/column.go
+index 28cef60a94..af093a8e59 100644
+--- a/pkg/services/sqlstore/migrator/column.go
++++ b/pkg/services/sqlstore/migrator/column.go
+@@ -1,7 +1,7 @@
+ package migrator
+ 
+ // Notice
+-// code based on parts from from https://github.com/go-xorm/core/blob/3e0fa232ab5c90996406c0cd7ae86ad0e5ecf85f/column.go
++// code based on parts from from https://xorm.io/core/blob/3e0fa232ab5c90996406c0cd7ae86ad0e5ecf85f/column.go
+ 
+ type Column struct {
+ 	Name            string
+diff --git a/pkg/services/sqlstore/migrator/dialect.go b/pkg/services/sqlstore/migrator/dialect.go
+index 0aa2be7301..5246f17971 100644
+--- a/pkg/services/sqlstore/migrator/dialect.go
++++ b/pkg/services/sqlstore/migrator/dialect.go
+@@ -4,7 +4,7 @@ import (
+ 	"fmt"
+ 	"strings"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ )
+ 
+ type Dialect interface {
+diff --git a/pkg/services/sqlstore/migrator/migrator.go b/pkg/services/sqlstore/migrator/migrator.go
+index 612a333a72..f314b6ea84 100644
+--- a/pkg/services/sqlstore/migrator/migrator.go
++++ b/pkg/services/sqlstore/migrator/migrator.go
+@@ -4,7 +4,7 @@ import (
+ 	"time"
+ 
+ 	_ "github.com/go-sql-driver/mysql"
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+ 	"github.com/grafana/grafana/pkg/util/errutil"
+ 	_ "github.com/lib/pq"
+diff --git a/pkg/services/sqlstore/migrator/mysql_dialect.go b/pkg/services/sqlstore/migrator/mysql_dialect.go
+index 147df03357..a658819ea2 100644
+--- a/pkg/services/sqlstore/migrator/mysql_dialect.go
++++ b/pkg/services/sqlstore/migrator/mysql_dialect.go
+@@ -7,7 +7,7 @@ import (
+ 
+ 	"github.com/VividCortex/mysqlerr"
+ 	"github.com/go-sql-driver/mysql"
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ )
+ 
+ type Mysql struct {
+diff --git a/pkg/services/sqlstore/migrator/postgres_dialect.go b/pkg/services/sqlstore/migrator/postgres_dialect.go
+index 70803f3a9e..5ae7c57ea5 100644
+--- a/pkg/services/sqlstore/migrator/postgres_dialect.go
++++ b/pkg/services/sqlstore/migrator/postgres_dialect.go
+@@ -5,7 +5,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/util/errutil"
+ 	"github.com/lib/pq"
+ )
+diff --git a/pkg/services/sqlstore/migrator/sqlite_dialect.go b/pkg/services/sqlstore/migrator/sqlite_dialect.go
+index 8372898c35..a306badd82 100644
+--- a/pkg/services/sqlstore/migrator/sqlite_dialect.go
++++ b/pkg/services/sqlstore/migrator/sqlite_dialect.go
+@@ -3,7 +3,7 @@ package migrator
+ import (
+ 	"fmt"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/mattn/go-sqlite3"
+ )
+ 
+diff --git a/pkg/services/sqlstore/migrator/types.go b/pkg/services/sqlstore/migrator/types.go
+index 48354998d8..957bef392d 100644
+--- a/pkg/services/sqlstore/migrator/types.go
++++ b/pkg/services/sqlstore/migrator/types.go
+@@ -4,7 +4,7 @@ import (
+ 	"fmt"
+ 	"strings"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ )
+ 
+ const (
+diff --git a/pkg/services/sqlstore/session.go b/pkg/services/sqlstore/session.go
+index 07f1d4524c..e44105c79c 100644
+--- a/pkg/services/sqlstore/session.go
++++ b/pkg/services/sqlstore/session.go
+@@ -4,7 +4,7 @@ import (
+ 	"context"
+ 	"reflect"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ )
+ 
+ type DBSession struct {
+diff --git a/pkg/services/sqlstore/sqlstore.go b/pkg/services/sqlstore/sqlstore.go
+index bede60f1ff..7076b76dd6 100644
+--- a/pkg/services/sqlstore/sqlstore.go
++++ b/pkg/services/sqlstore/sqlstore.go
+@@ -11,7 +11,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/go-sql-driver/mysql"
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/bus"
+ 	"github.com/grafana/grafana/pkg/infra/localcache"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+diff --git a/pkg/services/sqlstore/transactions.go b/pkg/services/sqlstore/transactions.go
+index 27928f52a4..6d9888af39 100644
+--- a/pkg/services/sqlstore/transactions.go
++++ b/pkg/services/sqlstore/transactions.go
+@@ -4,7 +4,7 @@ import (
+ 	"context"
+ 	"time"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/bus"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+ 	"github.com/grafana/grafana/pkg/util/errutil"
+diff --git a/pkg/tsdb/mssql/mssql.go b/pkg/tsdb/mssql/mssql.go
+index 1ca3778b9d..debe106fa7 100644
+--- a/pkg/tsdb/mssql/mssql.go
++++ b/pkg/tsdb/mssql/mssql.go
+@@ -8,7 +8,7 @@ import (
+ 	"github.com/grafana/grafana/pkg/setting"
+ 
+ 	_ "github.com/denisenkom/go-mssqldb"
+-	"github.com/go-xorm/core"
++	"xorm.io/core"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+ 	"github.com/grafana/grafana/pkg/models"
+ 	"github.com/grafana/grafana/pkg/tsdb"
+diff --git a/pkg/tsdb/mssql/mssql_test.go b/pkg/tsdb/mssql/mssql_test.go
+index 760c6dcf07..84e5e0e219 100644
+--- a/pkg/tsdb/mssql/mssql_test.go
++++ b/pkg/tsdb/mssql/mssql_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/components/securejsondata"
+ 	"github.com/grafana/grafana/pkg/components/simplejson"
+ 	"github.com/grafana/grafana/pkg/models"
+diff --git a/pkg/tsdb/mysql/mysql.go b/pkg/tsdb/mysql/mysql.go
+index 682c3bc456..5ae7a9a87d 100644
+--- a/pkg/tsdb/mysql/mysql.go
++++ b/pkg/tsdb/mysql/mysql.go
+@@ -13,7 +13,7 @@ import (
+ 	"github.com/grafana/grafana/pkg/setting"
+ 
+ 	"github.com/go-sql-driver/mysql"
+-	"github.com/go-xorm/core"
++	"xorm.io/core"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+ 	"github.com/grafana/grafana/pkg/models"
+ 	"github.com/grafana/grafana/pkg/tsdb"
+diff --git a/pkg/tsdb/mysql/mysql_test.go b/pkg/tsdb/mysql/mysql_test.go
+index b2ff2bc969..609f923d2c 100644
+--- a/pkg/tsdb/mysql/mysql_test.go
++++ b/pkg/tsdb/mysql/mysql_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/components/securejsondata"
+ 	"github.com/grafana/grafana/pkg/components/simplejson"
+ 	"github.com/grafana/grafana/pkg/models"
+diff --git a/pkg/tsdb/postgres/postgres.go b/pkg/tsdb/postgres/postgres.go
+index a417699c1d..f38b94913b 100644
+--- a/pkg/tsdb/postgres/postgres.go
++++ b/pkg/tsdb/postgres/postgres.go
+@@ -7,7 +7,7 @@ import (
+ 
+ 	"github.com/grafana/grafana/pkg/setting"
+ 
+-	"github.com/go-xorm/core"
++	"xorm.io/core"
+ 	"github.com/grafana/grafana/pkg/infra/log"
+ 	"github.com/grafana/grafana/pkg/models"
+ 	"github.com/grafana/grafana/pkg/tsdb"
+diff --git a/pkg/tsdb/postgres/postgres_test.go b/pkg/tsdb/postgres/postgres_test.go
+index 23d0830d3d..d839d42ddb 100644
+--- a/pkg/tsdb/postgres/postgres_test.go
++++ b/pkg/tsdb/postgres/postgres_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"github.com/go-xorm/xorm"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/components/securejsondata"
+ 	"github.com/grafana/grafana/pkg/components/simplejson"
+ 	"github.com/grafana/grafana/pkg/models"
+diff --git a/pkg/tsdb/sqleng/sql_engine.go b/pkg/tsdb/sqleng/sql_engine.go
+index 0cfb1560e4..13bc84bd06 100644
+--- a/pkg/tsdb/sqleng/sql_engine.go
++++ b/pkg/tsdb/sqleng/sql_engine.go
+@@ -19,8 +19,8 @@ import (
+ 
+ 	"github.com/grafana/grafana/pkg/components/null"
+ 
+-	"github.com/go-xorm/core"
+-	"github.com/go-xorm/xorm"
++	"xorm.io/core"
++	"xorm.io/xorm"
+ 	"github.com/grafana/grafana/pkg/components/simplejson"
+ 	"github.com/grafana/grafana/pkg/models"
+ )

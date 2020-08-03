@@ -1,0 +1,18 @@
+diff --git a/pkg/tsdb/prometheus/prometheus.go b/pkg/tsdb/prometheus/prometheus.go
+index 1244031bb4..c1d85b7e53 100644
+--- a/pkg/tsdb/prometheus/prometheus.go
++++ b/pkg/tsdb/prometheus/prometheus.go
+@@ -112,10 +112,10 @@ func (e *PrometheusExecutor) Query(ctx context.Context, dsInfo *models.DataSourc
+ 		span.SetTag("stop_unixnano", query.End.UnixNano())
+ 		defer span.Finish()
+ 
+-		value, _, err := client.QueryRange(ctx, query.Expr, timeRange)
++		value, queryErr := client.QueryRange(ctx, query.Expr, timeRange)
+ 
+-		if err != nil {
+-			return nil, err
++		if queryErr != nil {
++			return nil, queryErr
+ 		}
+ 
+ 		queryResult, err := parseResponse(value, query)

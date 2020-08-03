@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# Copyright (c) 2019 Red Hat.
+# Copyright (c) 2019-2020 Red Hat.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -13,20 +13,12 @@
 # for more details.
 #
 
-set -o pipefail
-set -e
-set -u
-set -x
-
 [ $# -ne 1 ] && echo "Usage: $0 version" && exit 1
 
 # grafana version (must be tagged on github.com/grafana/grafana as "v$VER")
 VER=$1
-BUILDDIR=`mktemp -d buildXXXXXX`
 
-which npm || (echo Please install \"npm\" package && exit 1)
-which wget || (echo Please install \"wget\" package && exit 1)
-which git || (echo Please install \"git\" package && exit 1)
+command -v yarn || { echo Error, please install the yarn package manager. && exit 1; }
 
 # get src tree and set cwd
 echo Fetching pristine upstream git tagged branch for grafana version v$VER ...
@@ -43,9 +35,7 @@ sed -i '/phantomjs/d' scripts/grunt/*.js
 
 # populate node_modules using package.json
 echo Running yarn to populate local node_modules ....
-npm install yarn
-rm -f package-lock.json
-node_modules/yarn/bin/yarn --non-interactive --no-progress --ignore-engines install --pure-lockfile > yarn.out 2>&1
+yarn --non-interactive --no-progress --ignore-engines install --pure-lockfile > yarn.out 2>&1
 
 # build the webpack
 echo;echo Building production webpack ....
@@ -63,6 +53,6 @@ fi
 
 # done
 echo Both grafana-$VER.tar.gz and grafana_webpack-$VER.tar.gz
-echo should now be copied to your \$HOME/rpmbuild/SOURCES
+echo should now be in your working directory.
 
 exit 0

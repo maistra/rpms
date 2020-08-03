@@ -1,8 +1,8 @@
 diff --git a/pkg/api/login_oauth.go b/pkg/api/login_oauth.go
-index a46c972380..76fc8480c1 100644
+index c8c9f05b33..1b5a67aec2 100644
 --- a/pkg/api/login_oauth.go
 +++ b/pkg/api/login_oauth.go
-@@ -125,7 +125,7 @@ func (hs *HTTPServer) OAuthLogin(ctx *m.ReqContext) {
+@@ -134,7 +134,7 @@ func (hs *HTTPServer) OAuthLogin(ctx *m.ReqContext) {
  	oauthCtx := context.WithValue(context.Background(), oauth2.HTTPClient, oauthClient)
  
  	// get token from provider
