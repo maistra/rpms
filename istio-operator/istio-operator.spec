@@ -31,7 +31,7 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.1.5
+Version:        1.1.8
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
@@ -132,6 +132,9 @@ popd
 /manifests
 
 %changelog
+* Fri Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
+- Release of 1.1.8-1
+
 * Tue Jul 21 2020 Kevin Conner <kconner@redhat.com> - 1.1.5-1
 - Release of 1.1.5-1
 
