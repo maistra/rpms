@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 1
+%global with_tests 0
 # Build test binaries
 %global with_test_binaries 0
 
@@ -13,14 +13,14 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 327e423863f85c4709b1734029898d08a4e2dd48
+%global git_commit 29093158179dc65392f41e664617e3574e56f124
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 # https://github.com/maistra/proxy
 %global provider        github
 %global provider_tld    com
-%global project         maistra
-%global repo            proxy
+%global project         brian-avery
+%global repo            proxy-1
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 # Use /usr/local as base dir, once upstream heavily depends on that
@@ -68,12 +68,6 @@ pathfix.py -pn -i %{__python3} maistra/vendor >/dev/null 2>&1
 
 # Fix path to the vendor deps
 sed -i "s|=/work/|=$(pwd)/|" maistra/bazelrc-vendor
-
-# MultiArch
-ARCH=$(uname -p)
-if [ "${ARCH}" = "ppc64le" ]; then
-  ARCH="ppc"
-fi
 
 export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
 
