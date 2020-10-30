@@ -7,12 +7,12 @@
 %global debug_package %{nil}
 %endif
 
-%global git_commit 7b962f116b97a920a3ea39b287c6ea4748ea418e
+%global git_commit 9ea881ddbdc42c5549a2a07b5e42013b35ae6e1a
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 Name:           prometheus
 Version:        2.14.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
@@ -23,7 +23,7 @@ BuildRequires:  golang >= 1.13
 Source0:        https://github.com/maistra/prometheus/archive/%{git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  x86_64
 
 %global binary_name prometheus
 
@@ -122,5 +122,8 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{bina
 %config(noreplace) %{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 %changelog
+* Thu Oct 29 2020 Kevin Conner <kconner@redhat.com> - 2.14.0-2
+- Release of 2.14.0-2
+
 * Tue Jan 28 2020 Daniel Grimm <dgrimm@redhat.com> - 2.14.0-1
 - Update to Prometheus v2.14.0

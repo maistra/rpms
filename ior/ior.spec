@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        1.1.8
+Version:        1.1.10
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -22,7 +22,7 @@ URL:            https://%{provider_prefix}
 Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  x86_64
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.9
 
@@ -87,6 +87,9 @@ cd IOR/src/%{provider_prefix}
 %{_bindir}/ior
 
 %changelog
+* Tue Oct 27 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
+- Release of 1.1.10-1
+
 * Fri Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
 - Release of 1.1.8-1
 

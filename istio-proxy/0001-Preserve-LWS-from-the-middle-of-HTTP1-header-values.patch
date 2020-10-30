@@ -1,0 +1,448 @@
+From c468132361c1d340fea17dade2e35fae5c4d2661 Mon Sep 17 00:00:00 2001
+From: Yuchen Dai <silentdai@gmail.com>
+Date: Fri, 31 Jul 2020 14:02:59 -0700
+Subject: [PATCH 1/2] =?UTF-8?q?Preserve=20LWS=20from=20the=20middle=20of?=
+ =?UTF-8?q?=20HTTP1=20header=20values=20that=20requ=E2=80=A6=20(#12319)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+* [http1] Preserve LWS from the middle of HTTP1 header values that require multiple dispatch calls to process (#10886)
+
+Correctly preserve linear whitespace in the middle of HTTP1 header values. The fix in 6a95a21 trimmed away both leading and trailing whitespace when accepting header value fragments which can result in inner LWS in header values being stripped away if the LWS lands at the beginning or end of a buffer slice.
+
+Also various fix to allow build on clang-10
+
+Signed-off-by: Antonio Vicente <avd@google.com>
+Signed-off-by: Yuchen Dai <silentdai@gmail.com>
+Signed-off-by: Dmitri Dolguikh <ddolguik@redhat.com>
+---
+ bazel/external/quiche.BUILD                   |  4 ++
+ include/envoy/http/header_map.h               |  6 ++
+ source/common/http/async_client_impl.h        |  6 +-
+ source/common/http/header_map_impl.cc         |  9 +++
+ source/common/http/http1/codec_impl.cc        | 16 +++++-
+ .../network/dubbo_proxy/hessian_utils.cc      |  2 +-
+ .../extensions/stat_sinks/hystrix/hystrix.cc  |  2 +-
+ test/common/http/async_client_impl_test.cc    |  3 +-
+ test/common/http/header_map_impl_test.cc      | 31 ++++++++++
+ test/common/http/http1/codec_impl_test.cc     | 57 ++++++++++++++++++-
+ .../filters/http/buffer/config_test.cc        |  7 +--
+ .../filters/http/dynamo/config_test.cc        |  2 +-
+ .../filters/http/rbac/config_test.cc          | 15 +++--
+ .../filters/network/rbac/config_test.cc       |  5 +-
+ test/integration/protocol_integration_test.cc | 33 +++++++++++
+ 15 files changed, 171 insertions(+), 27 deletions(-)
+
+diff --git a/bazel/external/quiche.BUILD b/bazel/external/quiche.BUILD
+index a7cd337706..32ee289c4a 100644
+--- a/bazel/external/quiche.BUILD
++++ b/bazel/external/quiche.BUILD
+@@ -59,6 +59,10 @@ quiche_copts = select({
+         "-Wno-unused-parameter",
+         "-Wno-unused-function",
+         "-Wno-type-limits",
++        "-Wno-unused-function",
++        "-Wno-unknown-warning-option",
++        "-Wno-deprecated-copy",
++        "-Wno-range-loop-construct",
+         # quic_inlined_frame.h uses offsetof() to optimize memory usage in frames.
+         "-Wno-invalid-offsetof",
+         "-Wno-type-limits",
+diff --git a/include/envoy/http/header_map.h b/include/envoy/http/header_map.h
+index 0fa45cdfd5..b373459791 100644
+--- a/include/envoy/http/header_map.h
++++ b/include/envoy/http/header_map.h
+@@ -129,6 +129,12 @@ public:
+    */
+   char* buffer() { return buffer_.dynamic_; }
+ 
++  /**
++   * Trim trailing whitespaces from the HeaderString.
++   * v1.12 supports both Inline and Dynamic, but not Reference type.
++   */
++  void rtrim();
++
+   /**
+    * Get an absl::string_view. It will NOT be NUL terminated!
+    *
+diff --git a/source/common/http/async_client_impl.h b/source/common/http/async_client_impl.h
+index 5f45456045..57f98a9d9e 100644
+--- a/source/common/http/async_client_impl.h
++++ b/source/common/http/async_client_impl.h
+@@ -144,9 +144,9 @@ private:
+     }
+     absl::optional<std::chrono::milliseconds> maxInterval() const override { return absl::nullopt; }
+ 
+-    const std::vector<uint32_t> retriable_status_codes_;
+-    const std::vector<Http::HeaderMatcherSharedPtr> retriable_headers_;
+-    const std::vector<Http::HeaderMatcherSharedPtr> retriable_request_headers_;
++    const std::vector<uint32_t> retriable_status_codes_{};
++    const std::vector<Http::HeaderMatcherSharedPtr> retriable_headers_{};
++    const std::vector<Http::HeaderMatcherSharedPtr> retriable_request_headers_{};
+   };
+ 
+   struct NullShadowPolicy : public Router::ShadowPolicy {
+diff --git a/source/common/http/header_map_impl.cc b/source/common/http/header_map_impl.cc
+index f7af625ee7..45ee954bb7 100644
+--- a/source/common/http/header_map_impl.cc
++++ b/source/common/http/header_map_impl.cc
+@@ -150,6 +150,15 @@ void HeaderString::append(const char* data, uint32_t size) {
+   string_length_ += size;
+ }
+ 
++void HeaderString::rtrim() {
++  ASSERT(type() == Type::Inline || type() == Type::Dynamic);
++  absl::string_view original = getStringView();
++  absl::string_view rtrimmed = StringUtil::rtrim(original);
++  if (original.size() != rtrimmed.size()) {
++    string_length_ = rtrimmed.size();
++  }
++}
++
+ void HeaderString::clear() {
+   switch (type_) {
+   case Type::Reference: {
+diff --git a/source/common/http/http1/codec_impl.cc b/source/common/http/http1/codec_impl.cc
+index cf718cec06..7b310ecba9 100644
+--- a/source/common/http/http1/codec_impl.cc
++++ b/source/common/http/http1/codec_impl.cc
+@@ -408,6 +408,11 @@ void ConnectionImpl::completeLastHeader() {
+   checkHeaderNameForUnderscores();
+   if (!current_header_field_.empty()) {
+     toLowerTable().toLowerCase(current_header_field_.buffer(), current_header_field_.size());
++    // Strip trailing whitespace of the current header value if any. Leading whitespace was trimmed
++    // in ConnectionImpl::onHeaderValue. http_parser does not strip leading or trailing whitespace
++    // as the spec requires: https://tools.ietf.org/html/rfc7230#section-3.2.4
++    current_header_value_.rtrim();
++
+     current_header_map_->addViaMove(std::move(current_header_field_),
+                                     std::move(current_header_value_));
+   }
+@@ -518,9 +523,7 @@ void ConnectionImpl::onHeaderValue(const char* data, size_t length) {
+     return;
+   }
+ 
+-  // Work around a bug in http_parser where trailing whitespace is not trimmed
+-  // as the spec requires: https://tools.ietf.org/html/rfc7230#section-3.2.4
+-  const absl::string_view header_value = StringUtil::trim(absl::string_view(data, length));
++  absl::string_view header_value{data, length};
+ 
+   if (strict_header_validation_) {
+     if (!Http::HeaderUtility::headerValueIsValid(header_value)) {
+@@ -538,6 +541,13 @@ void ConnectionImpl::onHeaderValue(const char* data, size_t length) {
+   }
+ 
+   header_parsing_state_ = HeaderParsingState::Value;
++  if (current_header_value_.empty()) {
++    // Strip leading whitespace if the current header value input contains the first bytes of the
++    // encoded header value. Trailing whitespace is stripped once the full header value is known in
++    // ConnectionImpl::completeLastHeader. http_parser does not strip leading or trailing whitespace
++    // as the spec requires: https://tools.ietf.org/html/rfc7230#section-3.2.4 .
++    header_value = StringUtil::ltrim(header_value);
++  }
+   current_header_value_.append(header_value.data(), header_value.length());
+ 
+   checkMaxHeadersSize();
+diff --git a/source/extensions/filters/network/dubbo_proxy/hessian_utils.cc b/source/extensions/filters/network/dubbo_proxy/hessian_utils.cc
+index c9559f1652..8bc9228663 100644
+--- a/source/extensions/filters/network/dubbo_proxy/hessian_utils.cc
++++ b/source/extensions/filters/network/dubbo_proxy/hessian_utils.cc
+@@ -27,7 +27,7 @@ typename std::enable_if<std::is_signed<T>::value, T>::type leftShift(T left, uin
+ inline void addByte(Buffer::Instance& buffer, const uint8_t value) { buffer.add(&value, 1); }
+ 
+ void addSeq(Buffer::Instance& buffer, const std::initializer_list<uint8_t>& values) {
+-  for (const int8_t& value : values) {
++  for (const int8_t value : values) {
+     buffer.add(&value, 1);
+   }
+ }
+diff --git a/source/extensions/stat_sinks/hystrix/hystrix.cc b/source/extensions/stat_sinks/hystrix/hystrix.cc
+index a0e32b90a5..ac4171deff 100644
+--- a/source/extensions/stat_sinks/hystrix/hystrix.cc
++++ b/source/extensions/stat_sinks/hystrix/hystrix.cc
+@@ -50,7 +50,7 @@ void HystrixSink::addHistogramToStream(const QuantileLatencyMap& latency_map, ab
+   // TODO: Consider if we better use join here
+   ss << ", \"" << key << "\": {";
+   bool is_first = true;
+-  for (const std::pair<double, double>& element : latency_map) {
++  for (const std::pair<const double, double>& element : latency_map) {
+     const std::string quantile = fmt::sprintf("%g", element.first * 100);
+     HystrixSink::addDoubleToStream(quantile, element.second, ss, is_first);
+     is_first = false;
+diff --git a/test/common/http/async_client_impl_test.cc b/test/common/http/async_client_impl_test.cc
+index 39d594324a..ef0f0e0c73 100644
+--- a/test/common/http/async_client_impl_test.cc
++++ b/test/common/http/async_client_impl_test.cc
+@@ -139,7 +139,6 @@ TEST_F(AsyncClientImplTest, Basic) {
+         response_decoder_ = &decoder;
+         return nullptr;
+       }));
+-
+   TestHeaderMapImpl copy(message_->headers());
+   copy.addCopy("x-envoy-internal", "true");
+   copy.addCopy("x-forwarded-for", "127.0.0.1");
+@@ -149,7 +148,7 @@ TEST_F(AsyncClientImplTest, Basic) {
+   EXPECT_CALL(stream_encoder_, encodeData(BufferEqual(&data), true));
+   expectSuccess(200);
+ 
+-  client_.send(std::move(message_), callbacks_, AsyncClient::RequestOptions());
++  client_.send(std::move(message_), callbacks_, AsyncClient::RequestOptions().setSendXff(true));
+ 
+   HeaderMapPtr response_headers(new TestHeaderMapImpl{{":status", "200"}});
+   response_decoder_->decodeHeaders(std::move(response_headers), false);
+diff --git a/test/common/http/header_map_impl_test.cc b/test/common/http/header_map_impl_test.cc
+index 905cbe8f98..9a1073b90a 100644
+--- a/test/common/http/header_map_impl_test.cc
++++ b/test/common/http/header_map_impl_test.cc
+@@ -105,6 +105,37 @@ TEST(HeaderStringTest, All) {
+     EXPECT_EQ("HELLO", string.getStringView());
+   }
+ 
++  // Inline rtrim removes trailing whitespace only.
++  {
++    // This header string is short enough to fit into Inline type.
++    const std::string data_with_leading_lws = " \t\f\v  data";
++    const std::string data_with_leading_and_trailing_lws = data_with_leading_lws + " \t\f\v";
++    HeaderString string;
++    string.append(data_with_leading_and_trailing_lws.data(),
++                  data_with_leading_and_trailing_lws.size());
++    EXPECT_EQ(data_with_leading_and_trailing_lws, string.getStringView());
++    EXPECT_EQ(string.type(), HeaderString::Type::Inline);
++    string.rtrim();
++    EXPECT_NE(data_with_leading_and_trailing_lws, string.getStringView());
++    EXPECT_EQ(data_with_leading_lws, string.getStringView());
++  }
++
++  // Dynamic rtrim removes trailing whitespace only.
++  {
++    // Making this string longer than Inline can fit.
++    const std::string padding_data_with_leading_lws = " \t\f\v  data" + std::string(128, 'a');
++    const std::string data_with_leading_and_trailing_lws =
++        padding_data_with_leading_lws + " \t\f\v";
++    HeaderString string;
++    string.append(data_with_leading_and_trailing_lws.data(),
++                  data_with_leading_and_trailing_lws.size());
++    EXPECT_EQ(data_with_leading_and_trailing_lws, string.getStringView());
++    EXPECT_EQ(string.type(), HeaderString::Type::Dynamic);
++    string.rtrim();
++    EXPECT_NE(data_with_leading_and_trailing_lws, string.getStringView());
++    EXPECT_EQ(padding_data_with_leading_lws, string.getStringView());
++  }
++
+   // Static clear() does nothing.
+   {
+     std::string static_string("HELLO");
+diff --git a/test/common/http/http1/codec_impl_test.cc b/test/common/http/http1/codec_impl_test.cc
+index ee3256290f..7f29b42839 100644
+--- a/test/common/http/http1/codec_impl_test.cc
++++ b/test/common/http/http1/codec_impl_test.cc
+@@ -41,6 +41,16 @@ std::string createHeaderFragment(int num_headers) {
+   }
+   return headers;
+ }
++
++Buffer::OwnedImpl createBufferWithNByteSlices(absl::string_view input, size_t max_slice_size) {
++  Buffer::OwnedImpl buffer;
++  for (size_t offset = 0; offset < input.size(); offset += max_slice_size) {
++    buffer.appendSliceForTest(input.substr(offset, max_slice_size));
++  }
++  // Verify that the buffer contains the right number of slices.
++  ASSERT(buffer.getRawSlices(nullptr, 0) == (input.size() + max_slice_size - 1) / max_slice_size);
++  return buffer;
++}
+ } // namespace
+ 
+ class Http1ServerConnectionImplTest : public testing::Test {
+@@ -66,7 +76,13 @@ public:
+   // Then send a response just to clean up.
+   void sendAndValidateRequestAndSendResponse(absl::string_view raw_request,
+                                              const TestHeaderMapImpl& expected_request_headers) {
+-    NiceMock<Http::MockStreamDecoder> decoder;
++    Buffer::OwnedImpl buffer(raw_request);
++    sendAndValidateRequestAndSendResponse(buffer, expected_request_headers);
++  }
++
++  void sendAndValidateRequestAndSendResponse(Buffer::Instance& buffer,
++                                             const TestHeaderMapImpl& expected_request_headers) {
++    NiceMock<MockStreamDecoder> decoder;
+     Http::StreamEncoder* response_encoder = nullptr;
+     EXPECT_CALL(callbacks_, newStream(_, _))
+         .Times(1)
+@@ -74,8 +90,7 @@ public:
+           response_encoder = &encoder;
+           return decoder;
+         }));
+-    EXPECT_CALL(decoder, decodeHeaders_(HeaderMapEqual(&expected_request_headers), true)).Times(1);
+-    Buffer::OwnedImpl buffer(raw_request);
++    EXPECT_CALL(decoder, decodeHeaders_(HeaderMapEqual(&expected_request_headers), true));
+     codec_->dispatch(buffer);
+     EXPECT_EQ(0U, buffer.length());
+     response_encoder->encodeHeaders(TestHeaderMapImpl{{":status", "200"}}, true);
+@@ -206,6 +221,42 @@ TEST_F(Http1ServerConnectionImplTest, HostWithLWS) {
+       "GET / HTTP/1.1\r\nHost: 	 	  host		  	 \r\n\r\n", expected_headers);
+ }
+ 
++// Regression test for https://github.com/envoyproxy/envoy/issues/10270. Linear whitespace at the
++// beginning and end of a header value should be stripped. Whitespace in the middle should be
++// preserved.
++TEST_F(Http1ServerConnectionImplTest, InnerLWSIsPreserved) {
++  initialize();
++
++  // Header with many spaces surrounded by non-whitespace characters to ensure that dispatching is
++  // split across multiple dispatch calls. The threshold used here comes from Envoy preferring 16KB
++  // reads, but the important part is that the header value is split such that the pieces have
++  // leading and trailing whitespace characters.
++  const std::string header_value_with_inner_lws = "v" + std::string(32 * 1024, ' ') + "v";
++  TestHeaderMapImpl expected_headers{{":authority", "host"},
++                                     {":path", "/"},
++                                     {":method", "GET"},
++                                     {"header_field", header_value_with_inner_lws}};
++
++  {
++    // Regression test spaces in the middle are preserved
++    Buffer::OwnedImpl header_buffer = createBufferWithNByteSlices(
++        "GET / HTTP/1.1\r\nHost: host\r\nheader_field: " + header_value_with_inner_lws + "\r\n\r\n",
++        16 * 1024);
++    EXPECT_EQ(3, header_buffer.getRawSlices(nullptr, 0));
++    sendAndValidateRequestAndSendResponse(header_buffer, expected_headers);
++  }
++
++  {
++    // Regression test spaces before and after are removed
++    Buffer::OwnedImpl header_buffer = createBufferWithNByteSlices(
++        "GET / HTTP/1.1\r\nHost: host\r\nheader_field:  " + header_value_with_inner_lws +
++            "  \r\n\r\n",
++        16 * 1024);
++    EXPECT_EQ(3, header_buffer.getRawSlices(nullptr, 0));
++    sendAndValidateRequestAndSendResponse(header_buffer, expected_headers);
++  }
++}
++
+ TEST_F(Http1ServerConnectionImplTest, Http10) {
+   initialize();
+ 
+diff --git a/test/extensions/filters/http/buffer/config_test.cc b/test/extensions/filters/http/buffer/config_test.cc
+index 572d6b21b9..29b5044686 100644
+--- a/test/extensions/filters/http/buffer/config_test.cc
++++ b/test/extensions/filters/http/buffer/config_test.cc
+@@ -77,10 +77,9 @@ TEST(BufferFilterFactoryTest, BufferFilterEmptyProto) {
+ TEST(BufferFilterFactoryTest, BufferFilterEmptyRouteProto) {
+   BufferFilterFactory factory;
+   EXPECT_NO_THROW({
+-    envoy::config::filter::http::buffer::v2::BufferPerRoute* config =
+-        dynamic_cast<envoy::config::filter::http::buffer::v2::BufferPerRoute*>(
+-            factory.createEmptyRouteConfigProto().get());
+-    EXPECT_NE(nullptr, config);
++    auto config = factory.createEmptyRouteConfigProto();
++    EXPECT_NE(nullptr,
++              dynamic_cast<envoy::config::filter::http::buffer::v2::BufferPerRoute*>(config.get()));
+   });
+ }
+ 
+diff --git a/test/extensions/filters/http/dynamo/config_test.cc b/test/extensions/filters/http/dynamo/config_test.cc
+index fb8b7b3824..7657065f44 100644
+--- a/test/extensions/filters/http/dynamo/config_test.cc
++++ b/test/extensions/filters/http/dynamo/config_test.cc
+@@ -16,7 +16,7 @@ namespace {
+ TEST(DynamoFilterConfigTest, DynamoFilter) {
+   NiceMock<Server::Configuration::MockFactoryContext> context;
+   DynamoFilterConfig factory;
+-  const auto proto_config = factory.createEmptyConfigProto().get();
++  const auto proto_config = factory.createEmptyConfigProto();
+   Http::FilterFactoryCb cb = factory.createFilterFactoryFromProto(*proto_config, "stats", context);
+   Http::MockFilterChainFactoryCallbacks filter_callback;
+   EXPECT_CALL(filter_callback, addStreamFilter(_));
+diff --git a/test/extensions/filters/http/rbac/config_test.cc b/test/extensions/filters/http/rbac/config_test.cc
+index 7ab2a39ffe..2edd85b153 100644
+--- a/test/extensions/filters/http/rbac/config_test.cc
++++ b/test/extensions/filters/http/rbac/config_test.cc
+@@ -32,16 +32,19 @@ TEST(RoleBasedAccessControlFilterConfigFactoryTest, ValidProto) {
+ 
+ TEST(RoleBasedAccessControlFilterConfigFactoryTest, EmptyProto) {
+   RoleBasedAccessControlFilterConfigFactory factory;
+-  auto* config = dynamic_cast<envoy::config::filter::http::rbac::v2::RBAC*>(
+-      factory.createEmptyConfigProto().get());
+-  EXPECT_NE(nullptr, config);
++  auto config =
++
++      factory.createEmptyConfigProto();
++
++  EXPECT_NE(nullptr, dynamic_cast<envoy::config::filter::http::rbac::v2::RBAC*>(config.get()));
+ }
+ 
+ TEST(RoleBasedAccessControlFilterConfigFactoryTest, EmptyRouteProto) {
+   RoleBasedAccessControlFilterConfigFactory factory;
+-  auto* config = dynamic_cast<envoy::config::filter::http::rbac::v2::RBACPerRoute*>(
+-      factory.createEmptyRouteConfigProto().get());
+-  EXPECT_NE(nullptr, config);
++  auto config = factory.createEmptyRouteConfigProto();
++
++  EXPECT_NE(nullptr,
++            dynamic_cast<envoy::config::filter::http::rbac::v2::RBACPerRoute*>(config.get()));
+ }
+ 
+ TEST(RoleBasedAccessControlFilterConfigFactoryTest, RouteSpecificConfig) {
+diff --git a/test/extensions/filters/network/rbac/config_test.cc b/test/extensions/filters/network/rbac/config_test.cc
+index 8577982491..a975e9fe75 100644
+--- a/test/extensions/filters/network/rbac/config_test.cc
++++ b/test/extensions/filters/network/rbac/config_test.cc
+@@ -66,9 +66,8 @@ TEST_F(RoleBasedAccessControlNetworkFilterConfigFactoryTest, ValidProto) {
+ 
+ TEST_F(RoleBasedAccessControlNetworkFilterConfigFactoryTest, EmptyProto) {
+   RoleBasedAccessControlNetworkFilterConfigFactory factory;
+-  auto* config = dynamic_cast<envoy::config::filter::network::rbac::v2::RBAC*>(
+-      factory.createEmptyConfigProto().get());
+-  EXPECT_NE(nullptr, config);
++  auto config = factory.createEmptyConfigProto();
++  EXPECT_NE(nullptr, dynamic_cast<envoy::config::filter::network::rbac::v2::RBAC*>(config.get()));
+ }
+ 
+ TEST_F(RoleBasedAccessControlNetworkFilterConfigFactoryTest, InvalidPermission) {
+diff --git a/test/integration/protocol_integration_test.cc b/test/integration/protocol_integration_test.cc
+index bd642f42cd..da564cdfa7 100644
+--- a/test/integration/protocol_integration_test.cc
++++ b/test/integration/protocol_integration_test.cc
+@@ -230,6 +230,39 @@ TEST_P(ProtocolIntegrationTest, DrainClose) {
+   test_server_->drainManager().draining_ = false;
+ }
+ 
++// Regression test for https://github.com/envoyproxy/envoy/issues/10270
++TEST_P(ProtocolIntegrationTest, LongHeaderValueWithSpaces) {
++  // Header with at least 20kb of spaces surrounded by non-whitespace characters to ensure that
++  // dispatching is split across 2 dispatch calls. This threshold comes from Envoy preferring 16KB
++  // reads, which the buffer rounds up to about 20KB when allocating slices in
++  // Buffer::OwnedImpl::reserve().
++  const std::string long_header_value_with_inner_lws = "v" + std::string(32 * 1024, ' ') + "v";
++
++  initialize();
++  codec_client_ = makeHttpConnection(lookupPort("http"));
++  auto response = codec_client_->makeHeaderOnlyRequest(
++      Http::TestHeaderMapImpl{{":method", "GET"},
++                              {":path", "/test/long/url"},
++                              {":scheme", "http"},
++                              {":authority", "host"},
++                              {"longrequestvalue", long_header_value_with_inner_lws}});
++  waitForNextUpstreamRequest();
++  EXPECT_EQ(long_header_value_with_inner_lws, upstream_request_->headers()
++                                                  .get(Http::LowerCaseString("longrequestvalue"))
++                                                  ->value()
++                                                  .getStringView());
++  upstream_request_->encodeHeaders(
++      Http::TestHeaderMapImpl{{":status", "200"},
++                              {"longresponsevalue", long_header_value_with_inner_lws}},
++      true);
++  response->waitForEndStream();
++  EXPECT_TRUE(response->complete());
++  EXPECT_EQ("200", response->headers().Status()->value().getStringView());
++  EXPECT_EQ(
++      long_header_value_with_inner_lws,
++      response->headers().get(Http::LowerCaseString("longresponsevalue"))->value().getStringView());
++}
++
+ TEST_P(ProtocolIntegrationTest, Retry) {
+   initialize();
+   codec_client_ = makeHttpConnection(lookupPort("http"));
+-- 
+2.25.3
+

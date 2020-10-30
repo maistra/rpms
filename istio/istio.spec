@@ -2,11 +2,12 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
-
 # Run unit tests
 %global with_tests 0
 # Change this to an actual envoy binary when running tests
 %global ENVOY_PATH /tmp/envoy-dummy
+# Build test binaries
+%global with_test_binaries 0
 
 %if 0%{?with_debug}
 %global _dwz_low_mem_die_limit 0
@@ -29,7 +30,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.1.8
+Version:        1.1.10
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -39,8 +40,11 @@ Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_c
 Source1:        istiorc
 Source2:        buildinfo
 
+# CVE patches
+Patch2:         0001-CVE-2020-16844.patch
+
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  x86_64
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.13
 
@@ -171,6 +175,23 @@ all without requiring changes to the microservice code.
 This package contains the galley program.
 
 Galley is responsible for configuration management in Istio.
+
+%if 0%{?with_test_binaries}
+
+########### tests ###############
+%package pilot-tests
+Summary:  Istio Pilot Test Binaries
+Requires: servicemesh = %{version}-%{release}
+
+%description pilot-tests
+Istio is an open platform that provides a uniform way to connect, manage
+and secure microservices. Istio supports managing traffic flows between
+microservices, enforcing access policies, and aggregating telemetry data,
+all without requiring changes to the microservice code.
+
+This package contains the binaries needed for pilot tests.
+
+%endif
 
 %if 0%{?with_devel}
 %package devel
@@ -363,12 +384,16 @@ cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
 
 sed "s|istio.io/pkg/version\.buildVersion=.*|istio.io/pkg/version.buildVersion=Maistra_%{version}|" %{SOURCE2} > ISTIO/src/istio.io/istio/buildinfo
 
+pushd ISTIO/src/istio.io/istio
+%patch2 -p1
+popd
+
 %build
 cd ISTIO
-export GOPROXY=off
-export GOPATH=$(pwd):${GOPATH}
 
-export GOARCH=${GOARCH:-'amd64'}
+export GOPROXY=off
+
+export GOARCH=$(go env GOARCH)
 ISTIO_OUT=$(pwd)/out/linux_${GOARCH}/release
 HELM_VER=v2.10.0
 mkdir -p ${ISTIO_OUT}
@@ -408,10 +433,11 @@ popd
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
+export GOARCH=$(go env GOARCH)
 
 binaries=(pilot-discovery pilot-agent istioctl sidecar-injector mixs mixc istio_ca galley)
 pushd .
-cd ISTIO/out/linux_amd64/release
+cd ISTIO/out/linux_$GOARCH/release
 %if 0%{?with_debug}
     for i in "${binaries[@]}"; do
         cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
@@ -454,17 +480,17 @@ popd
 
 # source codes for building projects
 %if 0%{?with_devel}
-install -d -p %{buildroot}/%{gopath}/src/%{import_path}/
-echo "%%dir %%{gopath}/src/%%{import_path}/." >> devel.file-list
+install -d -p %{buildroot}/${GOPATH}/src/%{import_path}/
+echo "%%dir ${GOPATH}/src/%%{import_path}/." >> devel.file-list
 # find all *.go but no *_test.go files and generate devel.file-list
 for file in $(find . \( -iname "*.go" -or -iname "*.s" \) \! -iname "*_test.go") ; do
     dirprefix=$(dirname $file)
-    install -d -p %{buildroot}/%{gopath}/src/%{import_path}/$dirprefix
-    cp -pav $file %{buildroot}/%{gopath}/src/%{import_path}/$file
-    echo "%%{gopath}/src/%%{import_path}/$file" >> devel.file-list
+    install -d -p %{buildroot}/${GOPATH}/src/%{import_path}/$dirprefix
+    cp -pav $file %{buildroot}/${GOPATH}/src/%{import_path}/$file
+    echo "${GOPATH}/src/%%{import_path}/$file" >> devel.file-list
 
     while [ "$dirprefix" != "." ]; do
-        echo "%%dir %%{gopath}/src/%%{import_path}/$dirprefix" >> devel.file-list
+        echo "%%dir ${GOPATH}/src/%%{import_path}/$dirprefix" >> devel.file-list
         dirprefix=$(dirname $dirprefix)
     done
 done
@@ -533,10 +559,13 @@ popd
 %files devel -f devel.file-list
 %license ISTIO/src/istio.io/istio/LICENSE
 %doc ISTIO/src/istio.io/istio/README.md ISTIO/src/istio.io/istio/DEV-*.md ISTIO/src/istio.io/istio/CONTRIBUTING.md
-%dir %{gopath}/src/%{provider}.%{provider_tld}/%{project}
+%dir ISTIO/src/istio.io/istio
 %endif
 
 %changelog
+* Tue Oct 27 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
+- Release of 1.1.10-1
+
 * Fri Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
 - Release of 1.1.8-1
 

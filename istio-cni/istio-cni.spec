@@ -13,16 +13,21 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        1.1.8
+Version:        1.1.10
 Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
 
 Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
+Patch0:         0001-MAISTRA-1460-Update-yaml.v2-to-v2.2.4.patch
+Patch1:         0002-MAISTRA-1637-CVE-2020-14040-1.patch
+Patch2:         0002-MAISTRA-1637-CVE-2020-14040-2.patch
+Patch3:         0002-MAISTRA-1637-CVE-2020-14040-3.patch
+Patch4:         0003-MAISTRA-1657-CVE-2020-9283.patch
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  x86_64
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.13
 
@@ -33,6 +38,14 @@ istio-cni is a Container Network Interface (CNI) Plugin that sets up Istio iptab
 rm -rf istio-cni
 mkdir -p istio-cni/src/%{provider_prefix}
 tar zxf %{SOURCE0} -C istio-cni/src/%{provider_prefix} --strip=1
+
+pushd istio-cni/src/github.com/maistra/istio-cni
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
+%patch4 -p1
+popd
 
 %build
 cd istio-cni
@@ -97,6 +110,9 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Tue Oct 27 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
+- Release of 1.1.10-1
+
 * Fri Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
 - Release of 1.1.8-1
 
