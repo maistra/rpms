@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit ecd20fccd358944585f46ade33536b4aecf2dd3d
+%global git_commit 7ac6f2643bf7de61acf6c7d914de6c4046c4d97f
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -31,16 +31,17 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.1.8
+Version:        1.1.10
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
 URL:            https://%{provider_prefix}/%{repo}
 
 Source0:        https://%{provider_prefix}/%{repo}/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
+Patch0:         0001-MAISTRA-1464-Update-gopkg.in-yaml.v2-to-v2.3.0.patch
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  x86_64
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.13
 
@@ -62,6 +63,10 @@ rm -rf OPERATOR
 
 mkdir -p OPERATOR/src/github.com/maistra/istio-operator
 tar zxf %{SOURCE0} -C OPERATOR/src/github.com/maistra/istio-operator --strip=1
+
+pushd OPERATOR/src/github.com/maistra/istio-operator
+%patch0 -p1
+popd
 
 %build
 cd OPERATOR
@@ -132,6 +137,9 @@ popd
 /manifests
 
 %changelog
+* Thu Oct 29 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
+- Release of 1.1.10-1
+
 * Fri Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
 - Release of 1.1.8-1
 

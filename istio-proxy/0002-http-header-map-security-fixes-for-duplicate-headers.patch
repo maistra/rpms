@@ -1,0 +1,1295 @@
+From 5329ba141122c6a72d4f470840c79a679d53d215 Mon Sep 17 00:00:00 2001
+From: Kevin Conner <kconner@redhat.com>
+Date: Thu, 24 Sep 2020 15:52:27 -0700
+Subject: [PATCH] [PATCH 2/2] http: header map security fixes for duplicate
+ headers
+
+Previously header matching did not match on all headers for
+non-inline headers. This patch changes the default behavior to
+always logically match on all headers. Multiple individual
+headers will be logically concatenated with ',' similar to what
+is done with inline headers. This makes the behavior effectively
+consistent. This behavior can be temporary reverted by setting
+the runtime value "envoy.reloadable_features.header_match_on_all_headers"
+to "false".
+
+Targeted fixes have been additionally performed on the following
+extensions which make them consider all duplicate headers by default as
+a comma concatenated list:
+1) Any extension using CEL matching on headers.
+2) The header to metadata filter.
+3) The JWT filter.
+4) The Lua filter.
+Like primary header matching used in routing, RBAC, etc. this behavior
+can be disabled by setting the runtime value
+"envoy.reloadable_features.header_match_on_all_headers" to false.
+
+Finally, the setCopy() header map API previously only set the first
+header in the case of duplicate non-inline headers. setCopy() now
+behaves similiarly to the other set*() APIs and replaces all found
+headers with a single value. This may have had security implications
+in the extauth filter which uses this API. This behavior can be disabled
+by setting the runtime value
+"envoy.reloadable_features.http_set_copy_replace_all_headers" to false.
+
+diff --git a/docs/root/intro/version_history.rst b/docs/root/intro/version_history.rst
+index 5a58a316aa..4cef90d0fe 100644
+--- a/docs/root/intro/version_history.rst
++++ b/docs/root/intro/version_history.rst
+@@ -1,6 +1,27 @@
+ Version history
+ ---------------
+ 
++1.12.7 (Pending)
++================
++Changes
++-------
++* http: fixed CVE-2020-25017. Previously header matching did not match on all headers for non-inline headers. This patch
++  changes the default behavior to always logically match on all headers. Multiple individual
++  headers will be logically concatenated with ',' similar to what is done with inline headers. This
++  makes the behavior effectively consistent. This behavior can be temporary reverted by setting
++  the runtime value "envoy.reloadable_features.header_match_on_all_headers" to "false".
++
++  Targeted fixes have been additionally performed on the following extensions which make them
++  consider all duplicate headers by default as a comma concatenated list:
++
++    1. Any extension using CEL matching on headers.
++    2. The header to metadata filter.
++    3. The JWT filter.
++    4. The Lua filter.
++
++  Like primary header matching used in routing, RBAC, etc. this behavior can be disabled by setting
++  the runtime value "envoy.reloadable_features.header_match_on_all_headers" to false.
++
+ 1.12.3 (Pending)
+ ==========================
+ * buffer: force copy when appending small slices to OwnedImpl buffer to avoid fragmentation.
+diff --git a/include/envoy/http/BUILD b/include/envoy/http/BUILD
+index 68a28605c2..065385d106 100644
+--- a/include/envoy/http/BUILD
++++ b/include/envoy/http/BUILD
+@@ -86,6 +86,9 @@ envoy_cc_library(
+ envoy_cc_library(
+     name = "header_map_interface",
+     hdrs = ["header_map.h"],
++    external_deps = [
++        "abseil_inlined_vector",
++    ],
+     deps = [
+         "//source/common/common:assert_lib",
+         "//source/common/common:hash_lib",
+diff --git a/include/envoy/http/header_map.h b/include/envoy/http/header_map.h
+index b373459791..34f9d79bfd 100644
+--- a/include/envoy/http/header_map.h
++++ b/include/envoy/http/header_map.h
+@@ -15,6 +15,7 @@
+ #include "common/common/hash.h"
+ #include "common/common/macros.h"
+ 
++#include "absl/container/inlined_vector.h"
+ #include "absl/strings/string_view.h"
+ 
+ namespace Envoy {
+@@ -507,6 +508,31 @@ public:
+   virtual const HeaderEntry* get(const LowerCaseString& key) const PURE;
+   virtual HeaderEntry* get(const LowerCaseString& key) PURE;
+ 
++  /**
++   * This is a wrapper for the return result from getAll(). It avoids a copy when translating from
++   * non-const HeaderEntry to const HeaderEntry and only provides const access to the result.
++   */
++  using NonConstGetResult = absl::InlinedVector<HeaderEntry*, 1>;
++  class GetResult {
++  public:
++    GetResult() = default;
++    explicit GetResult(NonConstGetResult&& result) : result_(std::move(result)) {}
++
++    bool empty() const { return result_.empty(); }
++    size_t size() const { return result_.size(); }
++    const HeaderEntry* operator[](size_t i) const { return result_[i]; }
++
++  private:
++    NonConstGetResult result_;
++  };
++
++  /**
++   * Get a header by key.
++   * @param key supplies the header key.
++   * @return all header entries matching the key.
++   */
++  virtual GetResult getAll(const LowerCaseString& key) const PURE;
++
+   // aliases to make iterate() and iterateReverse() callbacks easier to read
+   enum class Iterate { Continue, Break };
+ 
+diff --git a/source/common/http/BUILD b/source/common/http/BUILD
+index 2466d971fa..a9adbc8161 100644
+--- a/source/common/http/BUILD
++++ b/source/common/http/BUILD
+@@ -236,6 +236,7 @@ envoy_cc_library(
+         "//source/common/common:empty_string",
+         "//source/common/common:non_copyable",
+         "//source/common/common:utility_lib",
++        "//source/common/runtime:runtime_features_lib",
+         "//source/common/singleton:const_singleton",
+     ],
+ )
+diff --git a/source/common/http/header_map_impl.cc b/source/common/http/header_map_impl.cc
+index 45ee954bb7..c3c87535d4 100644
+--- a/source/common/http/header_map_impl.cc
++++ b/source/common/http/header_map_impl.cc
+@@ -505,13 +505,12 @@ uint64_t HeaderMapImpl::byteSizeInternal() const {
+ }
+ 
+ const HeaderEntry* HeaderMapImpl::get(const LowerCaseString& key) const {
+-  for (const HeaderEntryImpl& header : headers_) {
+-    if (header.key() == key.get().c_str()) {
+-      return &header;
+-    }
+-  }
++  const auto result = getAll(key);
++  return result.empty() ? nullptr : result[0];
++}
+ 
+-  return nullptr;
++HeaderMap::GetResult HeaderMapImpl::getAll(const LowerCaseString& key) const {
++  return HeaderMap::GetResult(const_cast<HeaderMapImpl*>(this)->getExisting(key));
+ }
+ 
+ HeaderEntry* HeaderMapImpl::get(const LowerCaseString& key) {
+@@ -521,10 +520,38 @@ HeaderEntry* HeaderMapImpl::get(const LowerCaseString& key) {
+       return &header;
+     }
+   }
+-
+   return nullptr;
+ }
+ 
++HeaderMap::NonConstGetResult HeaderMapImpl::getExisting(const LowerCaseString& key) {
++  // Attempt a trie lookup first to see if the user is requesting an O(1) header. This may be
++  // relatively common in certain header matching / routing patterns.
++  // TODO(mattklein123): Add inline handle support directly to the header matcher code to support
++  // this use case more directly.
++  HeaderMap::NonConstGetResult ret;
++
++  EntryCb cb = ConstSingleton<StaticLookupTable>::get().find(key.get());
++  if (cb) {
++    StaticLookupResponse ref_lookup_response = cb(*this);
++    if (*ref_lookup_response.entry_) {
++      ret.push_back(*ref_lookup_response.entry_);
++    }
++    return ret;
++  }
++  // If the requested header is not an O(1) header we do a full scan. Doing the trie lookup is
++  // wasteful in the miss case, but is present for code consistency with other functions that do
++  // similar things.
++  // TODO(mattklein123): The full scan here and in remove() are the biggest issues with this
++  // implementation for certain use cases. We can either replace this with a totally different
++  // implementation or potentially create a lazy map if the size of the map is above a threshold.
++  for (HeaderEntryImpl& header : headers_) {
++    if (header.key() == key.get().c_str()) {
++      ret.push_back(&header);
++    }
++  }
++  return ret;
++}
++
+ void HeaderMapImpl::iterate(ConstIterateCb cb, void* context) const {
+   for (const HeaderEntryImpl& header : headers_) {
+     if (cb(header, context) == HeaderMap::Iterate::Break) {
+diff --git a/source/common/http/header_map_impl.h b/source/common/http/header_map_impl.h
+index 82624331f5..47ca6279be 100644
+--- a/source/common/http/header_map_impl.h
++++ b/source/common/http/header_map_impl.h
+@@ -85,6 +85,7 @@ public:
+   uint64_t byteSizeInternal() const override;
+   const HeaderEntry* get(const LowerCaseString& key) const override;
+   HeaderEntry* get(const LowerCaseString& key) override;
++  HeaderMap::GetResult getAll(const LowerCaseString& key) const override;
+   void iterate(ConstIterateCb cb, void* context) const override;
+   void iterateReverse(ConstIterateCb cb, void* context) const override;
+   Lookup lookup(const LowerCaseString& key, const HeaderEntry** entry) const override;
+@@ -203,6 +204,7 @@ protected:
+   HeaderEntryImpl& maybeCreateInline(HeaderEntryImpl** entry, const LowerCaseString& key);
+   HeaderEntryImpl& maybeCreateInline(HeaderEntryImpl** entry, const LowerCaseString& key,
+                                      HeaderString&& value);
++  HeaderMap::NonConstGetResult getExisting(const LowerCaseString& key);
+   HeaderEntryImpl* getExistingInline(absl::string_view key);
+ 
+   void removeInline(HeaderEntryImpl** entry);
+diff --git a/source/common/http/header_utility.cc b/source/common/http/header_utility.cc
+index 76645b77d5..7b5853ce04 100644
+--- a/source/common/http/header_utility.cc
++++ b/source/common/http/header_utility.cc
+@@ -4,8 +4,10 @@
+ #include "common/common/utility.h"
+ #include "common/http/header_map_impl.h"
+ #include "common/protobuf/utility.h"
++#include "common/runtime/runtime_features.h"
+ 
+ #include "absl/strings/match.h"
++#include "absl/strings/str_join.h"
+ #include "nghttp2/nghttp2.h"
+ 
+ namespace Envoy {
+@@ -92,36 +94,65 @@ bool HeaderUtility::matchHeaders(const HeaderMap& request_headers,
+   return true;
+ }
+ 
++HeaderUtility::GetAllOfHeaderAsStringResult
++HeaderUtility::getAllOfHeaderAsString(const HeaderMap& headers, const Http::LowerCaseString& key) {
++  GetAllOfHeaderAsStringResult result;
++  const auto header_value = headers.getAll(key);
++
++  if (header_value.empty()) {
++    // Empty for clarity. Avoid handling the empty case in the block below if the runtime feature
++    // is disabled.
++  } else if (header_value.size() == 1 ||
++             !Runtime::runtimeFeatureEnabled(
++                 "envoy.reloadable_features.http_match_on_all_headers")) {
++    result.result_ = header_value[0]->value().getStringView();
++  } else {
++    // In this case we concatenate all found headers using a ',' delimiter before performing the
++    // final match. We use an InlinedVector of absl::string_view to invoke the optimized join
++    // algorithm. This requires a copying phase before we invoke join. The 3 used as the inline
++    // size has been arbitrarily chosen.
++    // TODO(mattklein123): Do we need to normalize any whitespace here?
++    absl::InlinedVector<absl::string_view, 3> string_view_vector;
++    string_view_vector.reserve(header_value.size());
++    for (size_t i = 0; i < header_value.size(); i++) {
++      string_view_vector.push_back(header_value[i]->value().getStringView());
++    }
++    result.result_backing_string_ = absl::StrJoin(string_view_vector, ",");
++  }
++
++  return result;
++}
++
+ bool HeaderUtility::matchHeaders(const HeaderMap& request_headers, const HeaderData& header_data) {
+-  const HeaderEntry* header = request_headers.get(header_data.name_);
++  const auto header_value = getAllOfHeaderAsString(request_headers, header_data.name_);
+ 
+-  if (header == nullptr) {
++  if (!header_value.result().has_value()) {
+     return header_data.invert_match_ && header_data.header_match_type_ == HeaderMatchType::Present;
+   }
+ 
+   bool match;
+-  const absl::string_view header_view = header->value().getStringView();
+   switch (header_data.header_match_type_) {
+   case HeaderMatchType::Value:
+-    match = header_data.value_.empty() || header_view == header_data.value_;
++    match = header_data.value_.empty() || header_value.result().value() == header_data.value_;
+     break;
+   case HeaderMatchType::Regex:
+-    match = header_data.regex_->match(header_view);
++    match = header_data.regex_->match(header_value.result().value());
+     break;
+   case HeaderMatchType::Range: {
+-    int64_t header_value = 0;
+-    match = absl::SimpleAtoi(header_view, &header_value) &&
+-            header_value >= header_data.range_.start() && header_value < header_data.range_.end();
++    int64_t header_int_value = 0;
++    match = absl::SimpleAtoi(header_value.result().value(), &header_int_value) &&
++            header_int_value >= header_data.range_.start() &&
++            header_int_value < header_data.range_.end();
+     break;
+   }
+   case HeaderMatchType::Present:
+     match = true;
+     break;
+   case HeaderMatchType::Prefix:
+-    match = absl::StartsWith(header_view, header_data.value_);
++    match = absl::StartsWith(header_value.result().value(), header_data.value_);
+     break;
+   case HeaderMatchType::Suffix:
+-    match = absl::EndsWith(header_view, header_data.value_);
++    match = absl::EndsWith(header_value.result().value(), header_data.value_);
+     break;
+   default:
+     NOT_REACHED_GCOVR_EXCL_LINE;
+diff --git a/source/common/http/header_utility.h b/source/common/http/header_utility.h
+index 3b7c5fa072..932d4dd9c3 100644
+--- a/source/common/http/header_utility.h
++++ b/source/common/http/header_utility.h
+@@ -32,6 +32,35 @@ public:
+   static void getAllOfHeader(const HeaderMap& headers, absl::string_view key,
+                              std::vector<absl::string_view>& out);
+ 
++  /**
++   * Get all header values as a single string. Multiple headers are concatenated with ','.
++   */
++  class GetAllOfHeaderAsStringResult {
++  public:
++    // The ultimate result of the concatenation. If absl::nullopt, no header values were found.
++    // If the final string required a string allocation, the memory is held in
++    // backingString(). This allows zero allocation in the common case of a single header
++    // value.
++    absl::optional<absl::string_view> result() const {
++      // This is safe for move/copy of this class as the backing string will be moved or copied.
++      // Otherwise result_ is valid. The assert verifies that both are empty or only 1 is set.
++      ASSERT((!result_.has_value() && result_backing_string_.empty()) ||
++             (result_.has_value() ^ !result_backing_string_.empty()));
++      return !result_backing_string_.empty() ? result_backing_string_ : result_;
++    }
++
++    const std::string& backingString() const { return result_backing_string_; }
++
++  private:
++    absl::optional<absl::string_view> result_;
++    // Valid only if result_ relies on memory allocation that must live beyond the call. See above.
++    std::string result_backing_string_;
++
++    friend class HeaderUtility;
++  };
++  static GetAllOfHeaderAsStringResult getAllOfHeaderAsString(const HeaderMap& headers,
++                                                             const Http::LowerCaseString& key);
++
+   // A HeaderData specifies one of exact value or regex or range element
+   // to match in a request's header, specified in the header_match_type_ member.
+   // It is the runtime equivalent of the HeaderMatchSpecifier proto in RDS API.
+diff --git a/source/common/runtime/BUILD b/source/common/runtime/BUILD
+index 618a0954bf..8a29784338 100644
+--- a/source/common/runtime/BUILD
++++ b/source/common/runtime/BUILD
+@@ -9,13 +9,32 @@ load(
+ envoy_package()
+ 
+ envoy_cc_library(
+-    name = "runtime_lib",
++    name = "runtime_features_lib",
+     srcs = [
+         "runtime_features.cc",
+-        "runtime_impl.cc",
+     ],
+     hdrs = [
+         "runtime_features.h",
++    ],
++    deps = [
++        "//include/envoy/runtime:runtime_interface",
++        "//source/common/common:assert_lib",
++        "//source/common/common:hash_lib",
++        "//source/common/protobuf:message_validator_lib",
++        "//source/common/protobuf:utility_lib",
++        "//source/common/singleton:const_singleton",
++        "@envoy_api//envoy/api/v2/core:pkg_cc_proto",
++        "@envoy_api//envoy/config/bootstrap/v2:pkg_cc_proto",
++        "@envoy_api//envoy/service/discovery/v2:pkg_cc_proto",
++    ],
++)
++
++envoy_cc_library(
++    name = "runtime_lib",
++    srcs = [
++        "runtime_impl.cc",
++    ],
++    hdrs = [
+         "runtime_impl.h",
+     ],
+     external_deps = ["ssl"],
+@@ -37,6 +56,7 @@ envoy_cc_library(
+         "//source/common/init:target_lib",
+         "//source/common/protobuf:message_validator_lib",
+         "//source/common/protobuf:utility_lib",
++        "//source/common/runtime:runtime_features_lib",
+         "@envoy_api//envoy/api/v2/core:pkg_cc_proto",
+         "@envoy_api//envoy/config/bootstrap/v2:pkg_cc_proto",
+         "@envoy_api//envoy/service/discovery/v2:pkg_cc_proto",
+diff --git a/source/common/runtime/runtime_features.cc b/source/common/runtime/runtime_features.cc
+index 4475f88c7b..76b55da276 100644
+--- a/source/common/runtime/runtime_features.cc
++++ b/source/common/runtime/runtime_features.cc
+@@ -1,8 +1,31 @@
+ #include "common/runtime/runtime_features.h"
+ 
++#include "common/common/assert.h"
++
+ namespace Envoy {
+ namespace Runtime {
+ 
++bool runtimeFeatureEnabled(absl::string_view feature) {
++  if (Runtime::LoaderSingleton::getExisting()) {
++    return Runtime::LoaderSingleton::getExisting()->threadsafeSnapshot()->runtimeFeatureEnabled(
++        feature);
++  }
++  ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::runtime), warn,
++                      "Unable to use runtime singleton for feature {}", feature);
++  return RuntimeFeaturesDefaults::get().enabledByDefault(feature);
++}
++
++uint64_t getInteger(absl::string_view feature, uint64_t default_value) {
++  ASSERT(absl::StartsWith(feature, "envoy."));
++  if (Runtime::LoaderSingleton::getExisting()) {
++    return Runtime::LoaderSingleton::getExisting()->threadsafeSnapshot()->getInteger(
++        std::string(feature), default_value);
++  }
++  ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::runtime), warn,
++                      "Unable to use runtime singleton for feature {}", feature);
++  return default_value;
++}
++
+ // Add additional features here to enable the new code paths by default.
+ //
+ // Per documentation in CONTRIBUTING.md is expected that new high risk code paths be guarded
+@@ -32,6 +55,7 @@ constexpr const char* runtime_features[] = {
+     "envoy.reloadable_features.strict_header_validation",
+     "envoy.reloadable_features.strict_authority_validation",
+     "envoy.reloadable_features.fix_wildcard_matching",
++    "envoy.reloadable_features.http_match_on_all_headers",
+ };
+ 
+ // This is a list of configuration fields which are disallowed by default in Envoy
+diff --git a/source/common/runtime/runtime_features.h b/source/common/runtime/runtime_features.h
+index 2f7cce929f..be717413ba 100644
+--- a/source/common/runtime/runtime_features.h
++++ b/source/common/runtime/runtime_features.h
+@@ -7,12 +7,17 @@
+ 
+ #include "common/protobuf/utility.h"
+ #include "common/singleton/const_singleton.h"
++#include "common/singleton/threadsafe_singleton.h"
+ 
+ #include "absl/container/flat_hash_set.h"
++#include "absl/strings/match.h"
+ 
+ namespace Envoy {
+ namespace Runtime {
+ 
++bool runtimeFeatureEnabled(absl::string_view feature);
++uint64_t getInteger(absl::string_view feature, uint64_t default_value);
++
+ class RuntimeFeatures {
+ public:
+   RuntimeFeatures();
+diff --git a/source/common/runtime/runtime_impl.cc b/source/common/runtime/runtime_impl.cc
+index c863bc62da..be134c7454 100644
+--- a/source/common/runtime/runtime_impl.cc
++++ b/source/common/runtime/runtime_impl.cc
+@@ -25,28 +25,6 @@
+ namespace Envoy {
+ namespace Runtime {
+ 
+-bool runtimeFeatureEnabled(absl::string_view feature) {
+-  ASSERT(absl::StartsWith(feature, "envoy.reloadable_features"));
+-  if (Runtime::LoaderSingleton::getExisting()) {
+-    return Runtime::LoaderSingleton::getExisting()->threadsafeSnapshot()->runtimeFeatureEnabled(
+-        feature);
+-  }
+-  ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::runtime), warn,
+-                      "Unable to use runtime singleton for feature {}", feature);
+-  return RuntimeFeaturesDefaults::get().enabledByDefault(feature);
+-}
+-
+-uint64_t getInteger(absl::string_view feature, uint64_t default_value) {
+-  ASSERT(absl::StartsWith(feature, "envoy."));
+-  if (Runtime::LoaderSingleton::getExisting()) {
+-    return Runtime::LoaderSingleton::getExisting()->threadsafeSnapshot()->getInteger(
+-        std::string(feature), default_value);
+-  }
+-  ENVOY_LOG_TO_LOGGER(Envoy::Logger::Registry::getLog(Envoy::Logger::Id::runtime), warn,
+-                      "Unable to use runtime singleton for feature {}", feature);
+-  return default_value;
+-}
+-
+ const size_t RandomGeneratorImpl::UUID_LENGTH = 36;
+ 
+ uint64_t RandomGeneratorImpl::random() {
+diff --git a/source/common/runtime/runtime_impl.h b/source/common/runtime/runtime_impl.h
+index 1ee1fe97c6..246cacdcb2 100644
+--- a/source/common/runtime/runtime_impl.h
++++ b/source/common/runtime/runtime_impl.h
+@@ -23,6 +23,7 @@
+ #include "common/common/logger.h"
+ #include "common/common/thread.h"
+ #include "common/init/target_impl.h"
++#include "common/runtime/runtime_features.h"
+ #include "common/singleton/threadsafe_singleton.h"
+ 
+ #include "spdlog/spdlog.h"
+@@ -30,9 +31,6 @@
+ namespace Envoy {
+ namespace Runtime {
+ 
+-bool runtimeFeatureEnabled(absl::string_view feature);
+-uint64_t getInteger(absl::string_view feature, uint64_t default_value);
+-
+ using RuntimeSingleton = ThreadSafeSingleton<Loader>;
+ 
+ /**
+diff --git a/source/extensions/common/wasm/wasm.cc b/source/extensions/common/wasm/wasm.cc
+index 216e440e22..a61722e5e3 100644
+--- a/source/extensions/common/wasm/wasm.cc
++++ b/source/extensions/common/wasm/wasm.cc
+@@ -1151,10 +1151,10 @@ WasmResult Context::getProperty(absl::string_view path, std::string* result) {
+             Protobuf::Arena::Create<WasmStateWrapper>(&arena, info->filterState()));
+       } else if (part == "request") {
+         value = CelValue::CreateMap(Protobuf::Arena::Create<Filters::Common::Expr::RequestWrapper>(
+-            &arena, request_headers, *info));
++            &arena, arena, request_headers, *info));
+       } else if (part == "response") {
+         value = CelValue::CreateMap(Protobuf::Arena::Create<Filters::Common::Expr::ResponseWrapper>(
+-            &arena, response_headers, response_trailers, *info));
++            &arena, arena, response_headers, response_trailers, *info));
+       } else if (part == "connection") {
+         value = CelValue::CreateMap(
+             Protobuf::Arena::Create<Filters::Common::Expr::ConnectionWrapper>(&arena, *info));
+diff --git a/source/extensions/filters/common/expr/BUILD b/source/extensions/filters/common/expr/BUILD
+index 01906b7d2b..04bf874931 100644
+--- a/source/extensions/filters/common/expr/BUILD
++++ b/source/extensions/filters/common/expr/BUILD
+@@ -28,6 +28,9 @@ envoy_cc_library(
+     srcs = ["context.cc"],
+     hdrs = ["context.h"],
+     deps = [
++        "//source/common/grpc:common_lib",
++        "//source/common/http:header_map_lib",
++        "//source/common/http:header_utility_lib",
+         "//source/common/http:utility_lib",
+         "//source/common/stream_info:utility_lib",
+         "@com_google_cel_cpp//eval/public:cel_value",
+diff --git a/source/extensions/filters/common/expr/context.cc b/source/extensions/filters/common/expr/context.cc
+index befd2de5af..a2fbaa7584 100644
+--- a/source/extensions/filters/common/expr/context.cc
++++ b/source/extensions/filters/common/expr/context.cc
+@@ -18,6 +18,19 @@ absl::optional<CelValue> convertHeaderEntry(const Http::HeaderEntry* header) {
+   return CelValue::CreateString(header->value().getStringView());
+ }
+ 
++absl::optional<CelValue>
++convertHeaderEntry(Protobuf::Arena& arena,
++                   Http::HeaderUtility::GetAllOfHeaderAsStringResult&& result) {
++  if (!result.result().has_value()) {
++    return {};
++  } else if (!result.backingString().empty()) {
++    return CelValue::CreateString(
++        Protobuf::Arena::Create<std::string>(&arena, result.backingString()));
++  } else {
++    return CelValue::CreateString(result.result().value());
++  }
++}
++
+ absl::optional<CelValue> extractSslInfo(const Ssl::ConnectionInfo& ssl_info,
+                                         absl::string_view value) {
+   if (value == TLSVersion) {
+@@ -52,8 +65,9 @@ absl::optional<CelValue> HeadersWrapper::operator[](CelValue key) const {
+   if (value_ == nullptr || !key.IsString()) {
+     return {};
+   }
+-  auto out = value_->get(Http::LowerCaseString(std::string(key.StringOrDie().value())));
+-  return convertHeaderEntry(out);
++  return convertHeaderEntry(
++      arena_, Http::HeaderUtility::getAllOfHeaderAsString(
++                  *value_, Http::LowerCaseString(std::string(key.StringOrDie().value()))));
+ }
+ 
+ absl::optional<CelValue> RequestWrapper::operator[](CelValue key) const {
+diff --git a/source/extensions/filters/common/expr/context.h b/source/extensions/filters/common/expr/context.h
+index 77bf9cab80..b96c83e1f9 100644
+--- a/source/extensions/filters/common/expr/context.h
++++ b/source/extensions/filters/common/expr/context.h
+@@ -2,6 +2,8 @@
+ 
+ #include "envoy/stream_info/stream_info.h"
+ 
++#include "common/grpc/status.h"
++#include "common/http/header_utility.h"
+ #include "common/http/headers.h"
+ 
+ #include "eval/public/cel_value.h"
+@@ -66,7 +68,8 @@ class RequestWrapper;
+ 
+ class HeadersWrapper : public google::api::expr::runtime::CelMap {
+ public:
+-  HeadersWrapper(const Http::HeaderMap* value) : value_(value) {}
++  HeadersWrapper(Protobuf::Arena& arena, const Http::HeaderMap* value)
++      : arena_(arena), value_(value) {}
+   absl::optional<CelValue> operator[](CelValue key) const override;
+   int size() const override { return value_ == nullptr ? 0 : value_->size(); }
+   bool empty() const override { return value_ == nullptr ? true : value_->empty(); }
+@@ -77,6 +80,7 @@ public:
+ private:
+   friend class RequestWrapper;
+   friend class ResponseWrapper;
++  Protobuf::Arena& arena_;
+   const Http::HeaderMap* value_;
+ };
+ 
+@@ -91,8 +95,9 @@ public:
+ 
+ class RequestWrapper : public BaseWrapper {
+ public:
+-  RequestWrapper(const Http::HeaderMap* headers, const StreamInfo::StreamInfo& info)
+-      : headers_(headers), info_(info) {}
++  RequestWrapper(Protobuf::Arena& arena, const Http::HeaderMap* headers,
++                 const StreamInfo::StreamInfo& info)
++      : headers_(arena, headers), info_(info) {}
+   absl::optional<CelValue> operator[](CelValue key) const override;
+ 
+ private:
+@@ -102,9 +107,9 @@ private:
+ 
+ class ResponseWrapper : public BaseWrapper {
+ public:
+-  ResponseWrapper(const Http::HeaderMap* headers, const Http::HeaderMap* trailers,
+-                  const StreamInfo::StreamInfo& info)
+-      : headers_(headers), trailers_(trailers), info_(info) {}
++  ResponseWrapper(Protobuf::Arena& arena, const Http::HeaderMap* headers,
++                  const Http::HeaderMap* trailers, const StreamInfo::StreamInfo& info)
++      : headers_(arena, headers), trailers_(arena, trailers), info_(info) {}
+   absl::optional<CelValue> operator[](CelValue key) const override;
+ 
+ private:
+diff --git a/source/extensions/filters/common/expr/evaluator.cc b/source/extensions/filters/common/expr/evaluator.cc
+index 4df6d9b52b..dc683e698e 100644
+--- a/source/extensions/filters/common/expr/evaluator.cc
++++ b/source/extensions/filters/common/expr/evaluator.cc
+@@ -48,27 +48,27 @@ ExpressionPtr createExpression(Builder& builder, const google::api::expr::v1alph
+   return std::move(cel_expression_status.ValueOrDie());
+ }
+ 
+-absl::optional<CelValue> evaluate(const Expression& expr, Protobuf::Arena* arena,
++absl::optional<CelValue> evaluate(const Expression& expr, Protobuf::Arena& arena,
+                                   const StreamInfo::StreamInfo& info,
+                                   const Http::HeaderMap* request_headers,
+                                   const Http::HeaderMap* response_headers,
+                                   const Http::HeaderMap* response_trailers) {
+   google::api::expr::runtime::Activation activation;
+-  const RequestWrapper request(request_headers, info);
+-  const ResponseWrapper response(response_headers, response_trailers, info);
++  const RequestWrapper request(arena, request_headers, info);
++  const ResponseWrapper response(arena, response_headers, response_trailers, info);
+   const ConnectionWrapper connection(info);
+   const UpstreamWrapper upstream(info);
+   const PeerWrapper source(info, false);
+   const PeerWrapper destination(info, true);
+   activation.InsertValue(Request, CelValue::CreateMap(&request));
+   activation.InsertValue(Response, CelValue::CreateMap(&response));
+-  activation.InsertValue(Metadata, CelValue::CreateMessage(&info.dynamicMetadata(), arena));
++  activation.InsertValue(Metadata, CelValue::CreateMessage(&info.dynamicMetadata(), &arena));
+   activation.InsertValue(Connection, CelValue::CreateMap(&connection));
+   activation.InsertValue(Upstream, CelValue::CreateMap(&upstream));
+   activation.InsertValue(Source, CelValue::CreateMap(&source));
+   activation.InsertValue(Destination, CelValue::CreateMap(&destination));
+ 
+-  auto eval_status = expr.Evaluate(activation, arena);
++  auto eval_status = expr.Evaluate(activation, &arena);
+   if (!eval_status.ok()) {
+     return {};
+   }
+@@ -79,7 +79,7 @@ absl::optional<CelValue> evaluate(const Expression& expr, Protobuf::Arena* arena
+ bool matches(const Expression& expr, const StreamInfo::StreamInfo& info,
+              const Http::HeaderMap& headers) {
+   Protobuf::Arena arena;
+-  auto eval_status = Expr::evaluate(expr, &arena, info, &headers, nullptr, nullptr);
++  auto eval_status = Expr::evaluate(expr, arena, info, &headers, nullptr, nullptr);
+   if (!eval_status.has_value()) {
+     return false;
+   }
+diff --git a/source/extensions/filters/common/expr/evaluator.h b/source/extensions/filters/common/expr/evaluator.h
+index 92ccea420d..95a0968157 100644
+--- a/source/extensions/filters/common/expr/evaluator.h
++++ b/source/extensions/filters/common/expr/evaluator.h
+@@ -16,11 +16,20 @@ namespace Filters {
+ namespace Common {
+ namespace Expr {
+ 
++using Activation = google::api::expr::runtime::Activation;
++using ActivationPtr = std::unique_ptr<Activation>;
+ using Builder = google::api::expr::runtime::CelExpressionBuilder;
+ using BuilderPtr = std::unique_ptr<Builder>;
+ using Expression = google::api::expr::runtime::CelExpression;
+ using ExpressionPtr = std::unique_ptr<Expression>;
+ 
++// Creates an activation providing the common context attributes.
++// The activation lazily creates wrappers during an evaluation using the evaluation arena.
++ActivationPtr createActivation(Protobuf::Arena& arena, const StreamInfo::StreamInfo& info,
++                               const Http::HeaderMap* request_headers,
++                               const Http::HeaderMap* response_headers,
++                               const Http::HeaderMap* response_trailers);
++
+ // Creates an expression builder. The optional arena is used to enable constant folding
+ // for intermediate evaluation results.
+ // Throws an exception if fails to construct an expression builder.
+@@ -32,7 +41,7 @@ ExpressionPtr createExpression(Builder& builder, const google::api::expr::v1alph
+ 
+ // Evaluates an expression for a request. The arena is used to hold intermediate computational
+ // results and potentially the final value.
+-absl::optional<CelValue> evaluate(const Expression& expr, Protobuf::Arena* arena,
++absl::optional<CelValue> evaluate(const Expression& expr, Protobuf::Arena& arena,
+                                   const StreamInfo::StreamInfo& info,
+                                   const Http::HeaderMap* request_headers,
+                                   const Http::HeaderMap* response_headers,
+diff --git a/source/extensions/filters/http/header_to_metadata/BUILD b/source/extensions/filters/http/header_to_metadata/BUILD
+index 6cce872d79..aafeb6bedd 100644
+--- a/source/extensions/filters/http/header_to_metadata/BUILD
++++ b/source/extensions/filters/http/header_to_metadata/BUILD
+@@ -18,6 +18,8 @@ envoy_cc_library(
+     deps = [
+         "//include/envoy/server:filter_config_interface",
+         "//source/common/common:base64_lib",
++        "//source/common/http:header_utility_lib",
++        "//source/common/http:utility_lib",
+         "//source/extensions/filters/http:well_known_names",
+         "@envoy_api//envoy/config/filter/http/header_to_metadata/v2:pkg_cc_proto",
+     ],
+diff --git a/source/extensions/filters/http/header_to_metadata/header_to_metadata_filter.cc b/source/extensions/filters/http/header_to_metadata/header_to_metadata_filter.cc
+index 6c4379e7a9..3f64fdcc8c 100644
+--- a/source/extensions/filters/http/header_to_metadata/header_to_metadata_filter.cc
++++ b/source/extensions/filters/http/header_to_metadata/header_to_metadata_filter.cc
+@@ -2,6 +2,8 @@
+ 
+ #include "common/common/base64.h"
+ #include "common/config/well_known_names.h"
++#include "common/http/header_utility.h"
++#include "common/http/utility.h"
+ #include "common/protobuf/protobuf.h"
+ 
+ #include "extensions/filters/http/well_known_names.h"
+@@ -155,13 +157,12 @@ void HeaderToMetadataFilter::writeHeaderToMetadata(Http::HeaderMap& headers,
+   for (const auto& rulePair : rules) {
+     const auto& header = rulePair.first;
+     const auto& rule = rulePair.second;
+-    const Http::HeaderEntry* header_entry = headers.get(header);
++    const auto header_value = Http::HeaderUtility::getAllOfHeaderAsString(headers, header);
+ 
+-    if (header_entry != nullptr && rule.has_on_header_present()) {
++    if (header_value.result().has_value() && rule.has_on_header_present()) {
+       const auto& keyval = rule.on_header_present();
+-      absl::string_view value = keyval.value().empty() ? header_entry->value().getStringView()
++      absl::string_view value = keyval.value().empty() ? header_value.result().value()
+                                                        : absl::string_view(keyval.value());
+-
+       if (!value.empty()) {
+         const auto& nspace = decideNamespace(keyval.metadata_namespace());
+         addMetadata(structs_by_namespace, nspace, keyval.key(), value, keyval.type(),
+@@ -173,7 +174,8 @@ void HeaderToMetadataFilter::writeHeaderToMetadata(Http::HeaderMap& headers,
+       if (rule.remove()) {
+         headers.remove(header);
+       }
+-    } else if (rule.has_on_header_missing()) {
++    }
++    if (!header_value.result().has_value() && rule.has_on_header_missing()) {
+       // Add metadata for the header missing case.
+       const auto& keyval = rule.on_header_missing();
+ 
+diff --git a/source/extensions/filters/http/jwt_authn/BUILD b/source/extensions/filters/http/jwt_authn/BUILD
+index ed05b72312..48a1827c24 100644
+--- a/source/extensions/filters/http/jwt_authn/BUILD
++++ b/source/extensions/filters/http/jwt_authn/BUILD
+@@ -20,6 +20,7 @@ envoy_cc_library(
+     srcs = ["extractor.cc"],
+     hdrs = ["extractor.h"],
+     deps = [
++        "//source/common/http:header_utility_lib",
+         "//source/common/http:utility_lib",
+         "@envoy_api//envoy/config/filter/http/jwt_authn/v2alpha:pkg_cc_proto",
+     ],
+diff --git a/source/extensions/filters/http/jwt_authn/extractor.cc b/source/extensions/filters/http/jwt_authn/extractor.cc
+index c6950a2b31..a1bbdba06a 100644
+--- a/source/extensions/filters/http/jwt_authn/extractor.cc
++++ b/source/extensions/filters/http/jwt_authn/extractor.cc
+@@ -3,6 +3,7 @@
+ #include <memory>
+ 
+ #include "common/common/utility.h"
++#include "common/http/header_utility.h"
+ #include "common/http/headers.h"
+ #include "common/http/utility.h"
+ #include "common/singleton/const_singleton.h"
+@@ -180,9 +181,11 @@ std::vector<JwtLocationConstPtr> ExtractorImpl::extract(const Http::HeaderMap& h
+   // Check header locations first
+   for (const auto& location_it : header_locations_) {
+     const auto& location_spec = location_it.second;
+-    const Http::HeaderEntry* entry = headers.get(location_spec->header_);
+-    if (entry) {
+-      auto value_str = entry->value().getStringView();
++    ENVOY_LOG_MISC(debug, "extract {}", location_it.first);
++    const auto result =
++        Http::HeaderUtility::getAllOfHeaderAsString(headers, location_spec->header_);
++    if (result.result().has_value()) {
++      auto value_str = result.result().value();
+       if (!location_spec->value_prefix_.empty()) {
+         const auto pos = value_str.find(location_spec->value_prefix_);
+         if (pos == absl::string_view::npos) {
+diff --git a/source/extensions/filters/http/lua/BUILD b/source/extensions/filters/http/lua/BUILD
+index 1b66be88cc..dfbf1c9bf6 100644
+--- a/source/extensions/filters/http/lua/BUILD
++++ b/source/extensions/filters/http/lua/BUILD
+@@ -42,6 +42,7 @@ envoy_cc_library(
+         "//include/envoy/http:header_map_interface",
+         "//include/envoy/stream_info:stream_info_interface",
+         "//source/common/crypto:utility_lib",
++        "//source/common/http:header_utility_lib",
+         "//source/common/http:utility_lib",
+         "//source/extensions/common/crypto:utility_lib",
+         "//source/extensions/filters/common/lua:lua_lib",
+diff --git a/source/extensions/filters/http/lua/wrappers.cc b/source/extensions/filters/http/lua/wrappers.cc
+index 4874a716ce..e2db862c26 100644
+--- a/source/extensions/filters/http/lua/wrappers.cc
++++ b/source/extensions/filters/http/lua/wrappers.cc
+@@ -1,5 +1,6 @@
+ #include "extensions/filters/http/lua/wrappers.h"
+ 
++#include "common/http/header_utility.h"
+ #include "common/http/utility.h"
+ 
+ #include "extensions/filters/common/lua/wrappers.h"
+@@ -45,10 +46,10 @@ int HeaderMapWrapper::luaAdd(lua_State* state) {
+ 
+ int HeaderMapWrapper::luaGet(lua_State* state) {
+   const char* key = luaL_checkstring(state, 2);
+-  const Http::HeaderEntry* entry = headers_.get(Http::LowerCaseString(key));
+-  if (entry != nullptr) {
+-    lua_pushlstring(state, entry->value().getStringView().data(),
+-                    entry->value().getStringView().length());
++  const auto value =
++      Http::HeaderUtility::getAllOfHeaderAsString(headers_, Http::LowerCaseString(key));
++  if (value.result().has_value()) {
++    lua_pushlstring(state, value.result().value().data(), value.result().value().length());
+     return 1;
+   } else {
+     return 0;
+diff --git a/test/common/http/BUILD b/test/common/http/BUILD
+index f5df8e612c..2352795089 100644
+--- a/test/common/http/BUILD
++++ b/test/common/http/BUILD
+@@ -246,6 +246,7 @@ envoy_cc_test(
+     deps = [
+         "//source/common/http:header_map_lib",
+         "//source/common/http:header_utility_lib",
++        "//test/test_common:test_runtime_lib",
+         "//test/test_common:utility_lib",
+     ],
+ )
+@@ -282,6 +283,7 @@ envoy_cc_test(
+     srcs = ["header_utility_test.cc"],
+     deps = [
+         "//source/common/http:header_utility_lib",
++        "//test/test_common:test_runtime_lib",
+         "//test/test_common:utility_lib",
+     ],
+ )
+diff --git a/test/common/http/header_map_impl_test.cc b/test/common/http/header_map_impl_test.cc
+index 9a1073b90a..3d4bc7d54b 100644
+--- a/test/common/http/header_map_impl_test.cc
++++ b/test/common/http/header_map_impl_test.cc
+@@ -5,6 +5,7 @@
+ #include "common/http/header_utility.h"
+ 
+ #include "test/test_common/printers.h"
++#include "test/test_common/test_runtime.h"
+ #include "test/test_common/utility.h"
+ 
+ #include "gtest/gtest.h"
+diff --git a/test/common/http/header_utility_test.cc b/test/common/http/header_utility_test.cc
+index cdbc796a03..5fa23aad0f 100644
+--- a/test/common/http/header_utility_test.cc
++++ b/test/common/http/header_utility_test.cc
+@@ -7,6 +7,7 @@
+ #include "common/http/header_utility.h"
+ #include "common/json/json_loader.h"
+ 
++#include "test/test_common/test_runtime.h"
+ #include "test/test_common/utility.h"
+ 
+ #include "gtest/gtest.h"
+@@ -20,6 +21,53 @@ envoy::api::v2::route::HeaderMatcher parseHeaderMatcherFromYaml(const std::strin
+   return header_matcher;
+ }
+ 
++TEST(GetAllOfHeaderAsStringTest, All) {
++  const LowerCaseString test_header("test");
++  {
++    TestHeaderMapImpl headers;
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_FALSE(ret.result().has_value());
++    EXPECT_TRUE(ret.backingString().empty());
++  }
++  {
++    TestHeaderMapImpl headers{{"test", "foo"}};
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_EQ("foo", ret.result().value());
++    EXPECT_TRUE(ret.backingString().empty());
++  }
++  {
++    TestHeaderMapImpl headers{{"test", "foo"}, {"test", "bar"}};
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_EQ("foo,bar", ret.result().value());
++    EXPECT_EQ("foo,bar", ret.backingString());
++  }
++  {
++    TestHeaderMapImpl headers{{"test", ""}, {"test", "bar"}};
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_EQ(",bar", ret.result().value());
++    EXPECT_EQ(",bar", ret.backingString());
++  }
++  {
++    TestHeaderMapImpl headers{{"test", ""}, {"test", ""}};
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_EQ(",", ret.result().value());
++    EXPECT_EQ(",", ret.backingString());
++  }
++  {
++    TestHeaderMapImpl headers{
++        {"test", "a"}, {"test", "b"}, {"test", "c"}, {"test", ""}, {"test", ""}};
++    const auto ret = HeaderUtility::getAllOfHeaderAsString(headers, test_header);
++    EXPECT_EQ("a,b,c,,", ret.result().value());
++    EXPECT_EQ("a,b,c,,", ret.backingString());
++    // Make sure copying the return value works correctly.
++    const auto ret2 = ret; // NOLINT(performance-unnecessary-copy-initialization)
++    EXPECT_EQ(ret2.result(), ret.result());
++    EXPECT_EQ(ret2.backingString(), ret.backingString());
++    EXPECT_EQ(ret2.result().value().data(), ret2.backingString().data());
++    EXPECT_NE(ret2.result().value().data(), ret.backingString().data());
++  }
++}
++
+ TEST(HeaderDataConstructorTest, NoSpecifierSet) {
+   const std::string yaml = R"EOF(
+ name: test-header
+@@ -170,8 +218,32 @@ regex_match: (a|b)
+   EXPECT_FALSE(HeaderUtility::matchHeaders(headers, header_data));
+ 
+   headers.addCopy("match-header", "a");
++  // With a single "match-header" this regex will match.
+   EXPECT_TRUE(HeaderUtility::matchHeaders(headers, header_data));
++
+   headers.addCopy("match-header", "b");
++  // With two "match-header" we now logically have "a,b" as the value, so the regex will not match.
++  EXPECT_FALSE(HeaderUtility::matchHeaders(headers, header_data));
++
++  header_data[0] = std::make_unique<HeaderUtility::HeaderData>(parseHeaderMatcherFromYaml(R"EOF(
++name: match-header
++exact_match: a,b
++  )EOF"));
++  // Make sure that an exact match on "a,b" does in fact work.
++  EXPECT_TRUE(HeaderUtility::matchHeaders(headers, header_data));
++
++  TestScopedRuntime runtime;
++  Runtime::LoaderSingleton::getExisting()->mergeValues(
++      {{"envoy.reloadable_features.http_match_on_all_headers", "false"}});
++  // Flipping runtime to false should make "a,b" no longer match because we will match on the first
++  // header only.
++  EXPECT_FALSE(HeaderUtility::matchHeaders(headers, header_data));
++
++  header_data[0] = std::make_unique<HeaderUtility::HeaderData>(parseHeaderMatcherFromYaml(R"EOF(
++name: match-header
++exact_match: a
++  )EOF"));
++  // With runtime off, exact match on "a" should pass.
+   EXPECT_TRUE(HeaderUtility::matchHeaders(headers, header_data));
+ }
+ 
+diff --git a/test/extensions/common/wasm/BUILD b/test/extensions/common/wasm/BUILD
+index 490402dc17..729f73e60e 100644
+--- a/test/extensions/common/wasm/BUILD
++++ b/test/extensions/common/wasm/BUILD
+@@ -12,6 +12,9 @@ envoy_package()
+ envoy_cc_test(
+     name = "wasm_vm_test",
+     srcs = ["wasm_vm_test.cc"],
++    tags = [
++        "manual",
++    ],
+     deps = [
+         "//source/extensions/common/wasm:wasm_vm_lib",
+         "//test/test_common:utility_lib",
+diff --git a/test/extensions/filters/common/expr/context_test.cc b/test/extensions/filters/common/expr/context_test.cc
+index 75971170c0..e1bd3d3f98 100644
+--- a/test/extensions/filters/common/expr/context_test.cc
++++ b/test/extensions/filters/common/expr/context_test.cc
+@@ -23,7 +23,8 @@ namespace {
+ constexpr absl::string_view Undefined = "undefined";
+ 
+ TEST(Context, EmptyHeadersAttributes) {
+-  HeadersWrapper headers(nullptr);
++  Protobuf::Arena arena;
++  HeadersWrapper headers(arena, nullptr);
+   auto header = headers[CelValue::CreateString(Referer)];
+   EXPECT_FALSE(header.has_value());
+   EXPECT_EQ(0, headers.size());
+@@ -31,16 +32,16 @@ TEST(Context, EmptyHeadersAttributes) {
+ }
+ 
+ TEST(Context, RequestAttributes) {
+-  NiceMock<StreamInfo::MockStreamInfo> info;
+   NiceMock<StreamInfo::MockStreamInfo> empty_info;
+-  Http::TestHeaderMapImpl header_map{
+-      {":method", "POST"},           {":scheme", "http"},      {":path", "/meow?yes=1"},
+-      {":authority", "kittens.com"}, {"referer", "dogs.com"},  {"user-agent", "envoy-mobile"},
+-      {"content-length", "10"},      {"x-request-id", "blah"},
+-  };
+-  RequestWrapper request(&header_map, info);
+-  RequestWrapper empty_request(nullptr, empty_info);
+-
++  NiceMock<StreamInfo::MockStreamInfo> info;
++  Http::TestHeaderMapImpl header_map{{":method", "POST"},      {":scheme", "http"},
++                                     {":path", "/meow?yes=1"}, {":authority", "kittens.com"},
++                                     {"referer", "dogs.com"},  {"user-agent", "envoy-mobile"},
++                                     {"content-length", "10"}, {"x-request-id", "blah"},
++                                     {"double-header", "foo"}, {"double-header", "bar"}};
++  Protobuf::Arena arena;
++  RequestWrapper empty_request(arena, nullptr, empty_info);
++  RequestWrapper request(arena, &header_map, info);
+   EXPECT_CALL(info, bytesReceived()).WillRepeatedly(Return(10));
+   // "2018-04-03T23:06:09.123Z".
+   const SystemTime start_time(std::chrono::milliseconds(1522796769123));
+@@ -51,7 +52,6 @@ TEST(Context, RequestAttributes) {
+   // stub methods
+   EXPECT_EQ(0, request.size());
+   EXPECT_FALSE(request.empty());
+-
+   {
+     auto value = request[CelValue::CreateString(Undefined)];
+     EXPECT_FALSE(value.has_value());
+@@ -135,7 +135,7 @@ TEST(Context, RequestAttributes) {
+     EXPECT_TRUE(value.has_value());
+     ASSERT_TRUE(value.value().IsInt64());
+     // this includes the headers size
+-    EXPECT_EQ(138, value.value().Int64OrDie());
++    EXPECT_EQ(170, value.value().Int64OrDie());
+   }
+ 
+   {
+@@ -159,12 +159,17 @@ TEST(Context, RequestAttributes) {
+     ASSERT_TRUE(value.value().IsMap());
+     auto& map = *value.value().MapOrDie();
+     EXPECT_FALSE(map.empty());
+-    EXPECT_EQ(8, map.size());
++    EXPECT_EQ(10, map.size());
+ 
+     auto header = map[CelValue::CreateString(Referer)];
+     EXPECT_TRUE(header.has_value());
+     ASSERT_TRUE(header.value().IsString());
+     EXPECT_EQ("dogs.com", header.value().StringOrDie().value());
++
++    auto header2 = map[CelValue::CreateString("double-header")];
++    EXPECT_TRUE(header2.has_value());
++    ASSERT_TRUE(header2.value().IsString());
++    EXPECT_EQ("foo,bar", header2.value().StringOrDie().value());
+   }
+ 
+   {
+@@ -182,7 +187,8 @@ TEST(Context, RequestFallbackAttributes) {
+       {":scheme", "http"},
+       {":path", "/meow?yes=1"},
+   };
+-  RequestWrapper request(&header_map, info);
++  Protobuf::Arena arena;
++  RequestWrapper request(arena, &header_map, info);
+ 
+   EXPECT_CALL(info, bytesReceived()).WillRepeatedly(Return(10));
+ 
+@@ -208,8 +214,10 @@ TEST(Context, ResponseAttributes) {
+   const std::string trailer_name = "test-trailer";
+   Http::TestHeaderMapImpl header_map{{header_name, "a"}};
+   Http::TestHeaderMapImpl trailer_map{{trailer_name, "b"}};
+-  ResponseWrapper response(&header_map, &trailer_map, info);
+-  ResponseWrapper empty_response(nullptr, nullptr, empty_info);
++  Protobuf::Arena arena;
++  ResponseWrapper response(arena, &header_map, &trailer_map, info);
++  // ResponseWrapper empty_response(nullptr, nullptr, empty_info);
++  ResponseWrapper empty_response(arena, nullptr, nullptr, empty_info);
+ 
+   EXPECT_CALL(info, responseCode()).WillRepeatedly(Return(404));
+   EXPECT_CALL(info, bytesSent()).WillRepeatedly(Return(123));
+diff --git a/test/extensions/filters/http/header_to_metadata/header_to_metadata_filter_test.cc b/test/extensions/filters/http/header_to_metadata/header_to_metadata_filter_test.cc
+index 9674e22e82..bfc0be2bf4 100644
+--- a/test/extensions/filters/http/header_to_metadata/header_to_metadata_filter_test.cc
++++ b/test/extensions/filters/http/header_to_metadata/header_to_metadata_filter_test.cc
+@@ -98,6 +98,24 @@ TEST_F(HeaderToMetadataTest, BasicRequestTest) {
+   filter_->onDestroy();
+ }
+ 
++// Verify concatenation works.
++TEST_F(HeaderToMetadataTest, BasicRequestDoubleHeadersTest) {
++  initializeFilter(request_config_yaml);
++  Http::TestHeaderMapImpl incoming_headers{{"X-VERSION", "foo"}, {"X-VERSION", "bar"}};
++  std::map<std::string, std::string> expected = {{"version", "foo,bar"}};
++
++  EXPECT_CALL(decoder_callbacks_, streamInfo()).WillRepeatedly(ReturnRef(req_info_));
++  EXPECT_CALL(req_info_, setDynamicMetadata("envoy.lb", MapEq(expected)));
++  EXPECT_EQ(Http::FilterHeadersStatus::Continue, filter_->decodeHeaders(incoming_headers, false));
++  Http::MetadataMap metadata_map{{"metadata", "metadata"}};
++  EXPECT_EQ(Http::FilterMetadataStatus::Continue, filter_->decodeMetadata(metadata_map));
++  Buffer::OwnedImpl data("data");
++  EXPECT_EQ(Http::FilterDataStatus::Continue, filter_->decodeData(data, false));
++  Http::TestHeaderMapImpl incoming_trailers;
++  EXPECT_EQ(Http::FilterTrailersStatus::Continue, filter_->decodeTrailers(incoming_trailers));
++  filter_->onDestroy();
++}
++
+ /**
+  * X-version not set, the on missing value should be set.
+  */
+diff --git a/test/extensions/filters/http/jwt_authn/extractor_test.cc b/test/extensions/filters/http/jwt_authn/extractor_test.cc
+index 944e06bce0..737d53719b 100644
+--- a/test/extensions/filters/http/jwt_authn/extractor_test.cc
++++ b/test/extensions/filters/http/jwt_authn/extractor_test.cc
+@@ -164,6 +164,14 @@ TEST_F(ExtractorTest, TestCustomHeaderToken) {
+   EXPECT_FALSE(headers.get(Http::LowerCaseString("token-header")));
+ }
+ 
++// Make sure a double custom header concatenates the token
++TEST_F(ExtractorTest, TestDoubleCustomHeaderToken) {
++  auto headers = TestHeaderMapImpl{{"token-header", "jwt_token"}, {"token-header", "foo"}};
++  auto tokens = extractor_->extract(headers);
++  EXPECT_EQ(tokens.size(), 1);
++  EXPECT_EQ(tokens[0]->token(), "jwt_token,foo");
++}
++
+ // Test extracting token from the custom header: "prefix-header"
+ // value prefix doesn't match. It has to be either "AAA" or "AAABBB".
+ TEST_F(ExtractorTest, TestPrefixHeaderNotMatch) {
+diff --git a/test/extensions/filters/http/lua/wrappers_test.cc b/test/extensions/filters/http/lua/wrappers_test.cc
+index 2ce294f854..e842a22b8a 100644
+--- a/test/extensions/filters/http/lua/wrappers_test.cc
++++ b/test/extensions/filters/http/lua/wrappers_test.cc
+@@ -42,6 +42,10 @@ TEST_F(LuaHeaderMapWrapperTest, Methods) {
+       for key, value in pairs(object) do
+         testPrint(string.format("'%s' '%s'", key, value))
+       end
++
++      object:add("header3", "foo")
++      object:add("header3", "bar")
++      testPrint(object:get("header3"))
+     end
+   )EOF"};
+ 
+@@ -56,6 +60,7 @@ TEST_F(LuaHeaderMapWrapperTest, Methods) {
+   EXPECT_CALL(*this, testPrint("'header2' 'foo'"));
+   EXPECT_CALL(*this, testPrint("'hello' 'WORLD'"));
+   EXPECT_CALL(*this, testPrint("'header2' 'foo'"));
++  EXPECT_CALL(*this, testPrint("foo,bar"));
+   start("callMe");
+ }
+ 
+diff --git a/test/extensions/filters/http/rbac/rbac_filter_integration_test.cc b/test/extensions/filters/http/rbac/rbac_filter_integration_test.cc
+index 1d44ceecf9..15733438cf 100644
+--- a/test/extensions/filters/http/rbac/rbac_filter_integration_test.cc
++++ b/test/extensions/filters/http/rbac/rbac_filter_integration_test.cc
+@@ -63,6 +63,33 @@ typed_config:
+           - any: true
+ )EOF";
+ 
++const std::string RBAC_CONFIG_HEADER_MATCH_CONDITION = R"EOF(
++name: envoy.filters.http.rbac
++typed_config:
++  "@type": type.googleapis.com/envoy.config.filter.http.rbac.v2.RBAC
++  rules:
++    policies:
++      foo:
++        permissions:
++          - any: true
++        principals:
++          - any: true
++        condition:
++          call_expr:
++            function: _==_
++            args:
++            - select_expr:
++                operand:
++                  select_expr:
++                    operand:
++                      ident_expr:
++                        name: request
++                    field: headers
++                field: xxx
++            - const_expr:
++               string_value: {}
++)EOF";
++
+ using RBACIntegrationTest = HttpProtocolIntegrationTest;
+ 
+ INSTANTIATE_TEST_SUITE_P(Protocols, RBACIntegrationTest,
+@@ -277,5 +304,78 @@ TEST_P(RBACIntegrationTest, PathIgnoreCase) {
+   }
+ }
+ 
++// Basic CEL match on a header value.
++TEST_P(RBACIntegrationTest, HeaderMatchCondition) {
++  config_helper_.addFilter(fmt::format(RBAC_CONFIG_HEADER_MATCH_CONDITION, "yyy"));
++  initialize();
++
++  codec_client_ = makeHttpConnection(lookupPort("http"));
++
++  auto response = codec_client_->makeRequestWithBody(
++      Http::TestHeaderMapImpl{
++          {":method", "POST"},
++          {":path", "/path"},
++          {":scheme", "http"},
++          {":authority", "host"},
++          {"xxx", "yyy"},
++      },
++      1024);
++  waitForNextUpstreamRequest();
++  upstream_request_->encodeHeaders(Http::TestHeaderMapImpl{{":status", "200"}}, true);
++
++  response->waitForEndStream();
++  ASSERT_TRUE(response->complete());
++  EXPECT_EQ("200", response->headers().Status()->value().getStringView());
++}
++
++// CEL match on a header value in which the header is a duplicate. Verifies we handle string
++// copying correctly inside the CEL expression.
++TEST_P(RBACIntegrationTest, HeaderMatchConditionDuplicateHeaderNoMatch) {
++  config_helper_.addFilter(fmt::format(RBAC_CONFIG_HEADER_MATCH_CONDITION, "yyy"));
++  initialize();
++
++  codec_client_ = makeHttpConnection(lookupPort("http"));
++
++  auto response = codec_client_->makeRequestWithBody(
++      Http::TestHeaderMapImpl{
++          {":method", "POST"},
++          {":path", "/path"},
++          {":scheme", "http"},
++          {":authority", "host"},
++          {"xxx", "yyy"},
++          {"xxx", "zzz"},
++      },
++      1024);
++  response->waitForEndStream();
++  ASSERT_TRUE(response->complete());
++  EXPECT_EQ("403", response->headers().Status()->value().getStringView());
++}
++
++// CEL match on a header value in which the header is a duplicate. Verifies we handle string
++// copying correctly inside the CEL expression.
++TEST_P(RBACIntegrationTest, HeaderMatchConditionDuplicateHeaderMatch) {
++  config_helper_.addFilter(fmt::format(RBAC_CONFIG_HEADER_MATCH_CONDITION, "yyy,zzz"));
++  initialize();
++
++  codec_client_ = makeHttpConnection(lookupPort("http"));
++
++  auto response = codec_client_->makeRequestWithBody(
++      Http::TestHeaderMapImpl{
++          {":method", "POST"},
++          {":path", "/path"},
++          {":scheme", "http"},
++          {":authority", "host"},
++          {"xxx", "yyy"},
++          {"xxx", "zzz"},
++      },
++      1024);
++  waitForNextUpstreamRequest();
++  upstream_request_->encodeHeaders(Http::TestHeaderMapImpl{{":status", "200"}}, true);
++
++  response->waitForEndStream();
++  ASSERT_TRUE(response->complete());
++  EXPECT_EQ("200", response->headers().Status()->value().getStringView());
++}
++
+ } // namespace
+ } // namespace Envoy
+diff --git a/tools/spelling_dictionary.txt b/tools/spelling_dictionary.txt
+index 13fa984dcb..1593114c44 100644
+--- a/tools/spelling_dictionary.txt
++++ b/tools/spelling_dictionary.txt
+@@ -19,6 +19,7 @@ BSON
+ CAS
+ CB
+ CDS
++CEL
+ CHACHA
+ CHLO
+ CHLOS

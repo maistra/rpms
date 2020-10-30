@@ -41,6 +41,16 @@ sed -i '/phantomjs-prebuilt/d' package.json
 rm -f scripts/grunt/options/phantomjs.js
 sed -i '/phantomjs/d' scripts/grunt/*.js
 
+git apply ../yarn-002-maistra-1304
+git apply ../yarn-003-maistra-1328
+git apply ../yarn-004-maistra-1417
+git apply ../109-yarn-maistra-1522.patch
+git apply ../110-yarn-maistra-1565.patch
+git apply ../111-yarn-maistra-1560.patch
+
+git apply ../007-CVE-2020-13430.patch
+git apply ../008-CVE-2020-12245.patch
+
 # populate node_modules using package.json
 echo Running yarn to populate local node_modules ....
 npm install yarn

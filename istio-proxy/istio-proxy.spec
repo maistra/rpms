@@ -13,8 +13,10 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit ada8114105321a2601d1c3f38fa324c685795c1e
+%global git_commit 583ceb1f85492f5766f90ee51a380ee736e9fc9b
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
+%global gn_commit 743970903a39f4122a6476f9e05f59b9af03fdf6
+%global gn_hash f64a9dbbc3eb1954aaa3bd49e857abfb
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -27,7 +29,7 @@
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.1.8
+Version:        1.1.10
 Release:        1%{?dist}
 Summary:        Istio Proxy
 License:        ASL 2.0
@@ -51,14 +53,32 @@ BuildRequires:  libatomic
 BuildRequires:  platform-python-devel
 
 Source0:        proxy-%{git_commit}.tar.gz
+Source10:       gn-%{gn_hash}.tar.gz
+Patch0:         0001-Preserve-LWS-from-the-middle-of-HTTP1-header-values.patch
+Patch10:        0002-http-header-map-security-fixes-for-duplicate-headers.patch
+
+ExclusiveArch:  x86_64
 
 %description
 The Istio Proxy is a microservice proxy that can be used on the client and server side, and forms a microservice mesh. The Proxy supports a large number of features.
 
 %prep
 %setup -q -n proxy-%{git_commit}
+%setup -q -D -T -n proxy-%{git_commit} -a 10
+pushd maistra/vendor/envoy
+%patch0 -p1
+%patch10 -p1
+popd
 
 %build
+# BEGIN GN FIXME: Move GN to its own package?
+pushd gn
+export CXX=%{__cxx}
+python3 build/gen.py --no-static-libstdc++ --no-last-commit-position
+ninja -C out
+cp -f out/gn ../maistra/vendor/com_googlesource_chromium_v8/wee8/buildtools/linux64/gn
+popd
+# END GN
 
 # BEGIN Python workarounds
 mkdir -p "${HOME}/bin" && ln -s /usr/bin/python3 "${HOME}/bin/python"
@@ -82,6 +102,7 @@ bazel build \
   --config=${ARCH} \
   --local_resources 12288,6.0,1.0 \
   --jobs=6 \
+  --host_javabase=@local_jdk//:jdk \
   //src/envoy:envoy
 
 cp bazel-bin/src/envoy/envoy ${RPM_BUILD_DIR}
@@ -158,6 +179,9 @@ bazel test \
 /usr/local/bin/envoy
 
 %changelog
+* Thu Oct 29 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
+- Release of 1.1.10-1
+
 * Tue Sep 11 2020 Brian Avery <bavery@redhat.com> - 1.1.8-1
 - Release of 1.1.8-1
 
