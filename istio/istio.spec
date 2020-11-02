@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 0
+%global with_tests 1
 # Change this to an actual envoy binary when running tests
 %global ENVOY_PATH /tmp/envoy-dummy
 
@@ -390,7 +390,8 @@ set -x
 cd ISTIO
 
 export GOPROXY=off
-export GOPATH=$(pwd):${GOPATH}
+
+export GOPATH=$(pwd)
 
 export GOARCH=$(go env GOARCH)
 ISTIO_OUT=$(pwd)/out/linux_${GOARCH}/release
@@ -536,7 +537,6 @@ mkdir -p $RPM_BUILD_ROOT/etc/istio/proxy
 chmod g+w $RPM_BUILD_ROOT/etc/istio/proxy
 
 pushd pilot/docker
-cp envoy_pilot.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
 cp envoy_policy.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
 popd
 
