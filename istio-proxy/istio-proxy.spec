@@ -71,6 +71,10 @@ sed -i "s|=/work/|=$(pwd)/|" maistra/bazelrc-vendor
 
 export BUILD_SCM_REVISION="%{git_commit}" BUILD_SCM_STATUS="Maistra %{version}-%{release}"
 
+ARCH=$(uname -p)
+if [ "${ARCH}" = "ppc64le" ]; then
+  ARCH="ppc"
+fi
 bazel build \
   --config=release \
   --config=${ARCH} \

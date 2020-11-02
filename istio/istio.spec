@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 1
+%global with_tests 0
 # Change this to an actual envoy binary when running tests
 %global ENVOY_PATH /tmp/envoy-dummy
 
@@ -390,7 +390,7 @@ set -x
 cd ISTIO
 
 export GOPROXY=off
-
+export BUILD_WITH_CONTAINER=0
 export GOPATH=$(pwd)
 
 export GOARCH=$(go env GOARCH)
@@ -405,34 +405,12 @@ touch ${ENVOY}
 OUTDIR=$(pwd)/out/linux_$GOARCH/release
 pushd src/istio.io/istio
 
-BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" \
+BUILD_WITH_CONTAINER=${BUILD_WITH_CONTAINER} GOBUILDFLAGS="-mod=vendor" \
 ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} \
 make build
 
 %if 0%{?with_test_binaries}
-BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make test-bins
-%endif
-
-%if 0%{?with_tests}
-%check
-ENVOY="%{ENVOY_PATH}"
-if [ "${ENVOY}" == "/tmp/envoy-dummy" ]; then
-    echo
-    echo
-    echo "======================================================================================"
-    echo "Replace the ENVOY_PATH macro with an actual Envoy binary path before running the tests"
-    echo "======================================================================================"
-    echo
-    echo
-    exit 1
-fi
-
-cd ISTIO
-export GOPATH=$(pwd):${GOPATH}
-export GOBUILDFLAGS="-mod=vendor"
-pushd src/istio.io/istio
-BUILD_WITH_CONTAINER=0 make test
-popd
+BUILD_WITH_CONTAINER=${BUILD_WITH_CONTAINER} GOBUILDFLAGS="-mod=vendor" make test-bins
 %endif
 
 popd
@@ -441,6 +419,7 @@ popd
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 export GOARCH=$(go env GOARCH)
+export BUILD_WITH_CONTAINER=0
 
 binaries=(pilot-discovery pilot-agent istioctl mixs mixc mec)
 pushd .
@@ -494,8 +473,7 @@ cp -pav ISTIO/out/linux_$GOARCH/release/{pilot-test-server,pilot-test-client,pil
 
 cd ISTIO
 pushd src/istio.io/istio
-BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make localTestEnv test
-BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
+BUILD_WITH_CONTAINER=${BUILD_WITH_CONTAINER} GOBUILDFLAGS="-mod=vendor" make test
 popd
 
 %endif
