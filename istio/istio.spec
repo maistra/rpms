@@ -2,7 +2,6 @@
 %global with_devel 0
 # Build with debug info rpm
 %global with_debug 0
-
 # Run unit tests
 %global with_tests 0
 # Change this to an actual envoy binary when running tests
@@ -14,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 02d54da5931fed330295c8bbe142c64b4477a577
+%global git_commit 71086a8174a655243ac091a592323f19a88ef1b2
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -29,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.1.1
+Version:        2.0.0
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -39,7 +38,6 @@ Source0:        https://%{provider_prefix}/archive/%{git_commit}/%{repo}-%{git_c
 Source1:        istiorc
 Source2:        buildinfo
 
-
 # Patches to make build pass
 Patch1: 0001-Disable-wasm-download-until-we-re-ready-for-it.patch
 
@@ -48,6 +46,7 @@ Patch1: 0001-Disable-wasm-download-until-we-re-ready-for-it.patch
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.13
+BuildRequires: git
 
 %description
 Istio is an open platform that provides a uniform way to connect, manage
@@ -147,35 +146,49 @@ This package contains the mixc program.
 
 mixc is a debug/development CLI tool to interact with Mixer API.
 
-########### citadel ###############
-%package citadel
-Summary:  Istio Security Component
-Requires: istio = %{version}-%{release}
+%if 0%{?with_test_binaries}
 
-%description citadel
+########### tests ###############
+%package pilot-tests
+Summary:  Istio Pilot Test Binaries
+Requires: servicemesh = %{version}-%{release}
+
+%description pilot-tests
 Istio is an open platform that provides a uniform way to connect, manage
 and secure microservices. Istio supports managing traffic flows between
 microservices, enforcing access policies, and aggregating telemetry data,
 all without requiring changes to the microservice code.
 
-This package contains the istio_ca program.
+This package contains the binaries needed for pilot tests.
 
-This is the Istio Certificate Authority (CA) + security components.
-
-########### galley ###############
-%package galley
-Summary:  Istio Galley Component
+########### node_agent ###############
+%package node_agent
+Summary:  The Istio Node Agent
 Requires: istio = %{version}-%{release}
 
-%description galley
+%description node_agent
 Istio is an open platform that provides a uniform way to connect, manage
 and secure microservices. Istio supports managing traffic flows between
 microservices, enforcing access policies, and aggregating telemetry data,
 all without requiring changes to the microservice code.
 
-This package contains the galley program.
+This package contains the node agent.
 
-Galley is responsible for configuration management in Istio.
+
+########### sdsclient ###############
+%package sdsclient
+Summary:  The Istio SDS client
+Requires: istio = %{version}-%{release}
+
+%description sds-client
+Istio is an open platform that provides a uniform way to connect, manage
+and secure microservices. Istio supports managing traffic flows between
+microservices, enforcing access policies, and aggregating telemetry data,
+all without requiring changes to the microservice code.
+
+This package contains the sds client.
+
+%endif
 
 %if 0%{?with_devel}
 %package devel
@@ -364,30 +377,42 @@ rm -rf ISTIO
 mkdir -p ISTIO/src/istio.io/istio
 tar zxf %{SOURCE0} -C ISTIO/src/istio.io/istio --strip=1
 
+pushd ISTIO/src/istio.io/istio
+%patch1 -p1
+popd
+
 cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
 
 sed "s|istio.io/pkg/version\.buildVersion=.*|istio.io/pkg/version.buildVersion=Maistra_%{version}|" %{SOURCE2} > ISTIO/src/istio.io/istio/buildinfo
 
 %build
+set -x
 cd ISTIO
+
 export GOPROXY=off
 export GOPATH=$(pwd):${GOPATH}
 
-export GOARCH=${GOARCH:-'amd64'}
+export GOARCH=$(go env GOARCH)
 ISTIO_OUT=$(pwd)/out/linux_${GOARCH}/release
 HELM_VER=v2.10.0
 mkdir -p ${ISTIO_OUT}
 touch ${ISTIO_OUT}/version.helm.${HELM_VER}
 
-ENVOY="%{ENVOY_PATH}"
-echo "Using Envoy: ${ENVOY}"
+ENVOY=/tmp/envoy-dummy
 touch ${ENVOY}
 
-export GOBUILDFLAGS="-mod=vendor"
+OUTDIR=$(pwd)/out/linux_$GOARCH/release
 pushd src/istio.io/istio
-%patch1 -p1
-ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} make build
-popd
+
+pwd
+ls
+BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" \
+ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} \
+make build
+
+%if 0%{?with_test_binaries}
+GOBUILDFLAGS="-mod=vendor" make test-bins
+%endif
 
 %if 0%{?with_tests}
 %check
@@ -411,13 +436,16 @@ make test
 popd
 %endif
 
+popd
+
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
+export GOARCH=$(go env GOARCH)
 
-binaries=(pilot-discovery pilot-agent istioctl sidecar-injector mixs mixc istio_ca galley)
+binaries=(pilot-discovery pilot-agent istioctl mixs mixc mec)
 pushd .
-cd ISTIO/out/linux_amd64/release
+cd ISTIO/src/istio.io/istio/out/linux_$GOARCH
 %if 0%{?with_debug}
     for i in "${binaries[@]}"; do
         cp -pav $i $RPM_BUILD_ROOT%{_bindir}/
@@ -425,7 +453,8 @@ cd ISTIO/out/linux_amd64/release
 %else
     mkdir stripped
     for i in "${binaries[@]}"; do
-       echo "Dumping dynamic symbols for ${i}"
+
+        echo "Dumping dynamic symbols for ${i}"
         nm -D $i --format=posix --defined-only \
   | awk '{ print $1 }' | sort > dynsyms
 
@@ -458,19 +487,34 @@ cd ISTIO/out/linux_amd64/release
 %endif
 popd
 
+%if 0%{?with_test_binaries}
+cp -pav ISTIO/out/linux_$GOARCH/release/{pilot-test-server,pilot-test-client,pilot-test-eurekamirror} $RPM_BUILD_ROOT%{_bindir}/
+%endif
+
+%if 0%{?with_tests}
+
+%check
+cd ISTIO
+pushd src/istio.io/istio
+GOBUILDFLAGS="-mod=vendor" make localTestEnv test
+GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
+popd
+
+%endif
+
 # source codes for building projects
 %if 0%{?with_devel}
-install -d -p %{buildroot}/%{gopath}/src/%{import_path}/
-echo "%%dir %%{gopath}/src/%%{import_path}/." >> devel.file-list
+install -d -p %{buildroot}/${GOPATH}/src/%{import_path}/
+echo "%%dir ${GOPATH}/src/%%{import_path}/." >> devel.file-list
 # find all *.go but no *_test.go files and generate devel.file-list
 for file in $(find . \( -iname "*.go" -or -iname "*.s" \) \! -iname "*_test.go") ; do
     dirprefix=$(dirname $file)
-    install -d -p %{buildroot}/%{gopath}/src/%{import_path}/$dirprefix
-    cp -pav $file %{buildroot}/%{gopath}/src/%{import_path}/$file
-    echo "%%{gopath}/src/%%{import_path}/$file" >> devel.file-list
+    install -d -p %{buildroot}/${GOPATH}/src/%{import_path}/$dirprefix
+    cp -pav $file %{buildroot}/${GOPATH}/src/%{import_path}/$file
+    echo "${GOPATH}/src/%%{import_path}/$file" >> devel.file-list
 
     while [ "$dirprefix" != "." ]; do
-        echo "%%dir %%{gopath}/src/%%{import_path}/$dirprefix" >> devel.file-list
+        echo "%%dir ${GOPATH}/src/%%{import_path}/$dirprefix" >> devel.file-list
         dirprefix=$(dirname $dirprefix)
     done
 done
@@ -485,9 +529,7 @@ pushd ISTIO/src/istio.io/istio/
 
 mkdir -p $RPM_BUILD_ROOT/var/lib/istio/envoy
 pushd tools/packaging/common
-cp envoy_bootstrap_drain.json $RPM_BUILD_ROOT/var/lib/istio/envoy
 cp envoy_bootstrap_v2.json $RPM_BUILD_ROOT/var/lib/istio/envoy/envoy_bootstrap_tmpl.json
-cp istio-iptables.sh $RPM_BUILD_ROOT/usr/local/bin
 popd
 
 mkdir -p $RPM_BUILD_ROOT/etc/istio/proxy
@@ -496,7 +538,6 @@ chmod g+w $RPM_BUILD_ROOT/etc/istio/proxy
 pushd pilot/docker
 cp envoy_pilot.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
 cp envoy_policy.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
-cp envoy_telemetry.yaml.tmpl $RPM_BUILD_ROOT/etc/istio/proxy
 popd
 
 popd
@@ -510,18 +551,16 @@ popd
 
 %files pilot-discovery
 %{_bindir}/pilot-discovery
+%{_bindir}/mec
 
 %files pilot-agent
 %{_bindir}/pilot-agent
 %{_sysconfdir}/istio/proxy
 %{_localstatedir}/lib/istio/envoy
-%{_prefix}/bin
 
 %files istioctl
 %{_bindir}/istioctl
 
-%files sidecar-injector
-%{_bindir}/sidecar-injector
 
 %files mixs
 %{_bindir}/mixs
@@ -529,22 +568,21 @@ popd
 %files mixc
 %{_bindir}/mixc
 
-%files citadel
-%{_bindir}/istio_ca
-
-%files galley
-%{_bindir}/galley
+%if 0%{?with_test_binaries}
+%files pilot-tests
+%{_bindir}/pilot-test-server
+%{_bindir}/pilot-test-client
+%{_bindir}/pilot-test-eurekamirror
+%endif
 
 %if 0%{?with_devel}
 %files devel -f devel.file-list
 %license ISTIO/src/istio.io/istio/LICENSE
 %doc ISTIO/src/istio.io/istio/README.md ISTIO/src/istio.io/istio/DEV-*.md ISTIO/src/istio.io/istio/CONTRIBUTING.md
-%dir %{gopath}/src/%{provider}.%{provider_tld}/%{project}
+%dir ISTIO/src/istio.io/istio
 %endif
 
 %changelog
-* Mon May 4 2020 Kevin Conner <kconner@redhat.com> - 1.1.1-1
-- Release of 1.1.1-1
+* Fri Oct 30 2020 Brian Avery <bavery@redhat.com> - 2.0.0-1
+- Release of 2.0.0-1
 
-* Mon Mar 2 2020 Brian Avery <bavery@redhat.com> - 1.1.0-1
-- Update to Maistra 1.1.0, Istio 1.4.5

@@ -27,7 +27,7 @@
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.2.0
+Version:        2.0.0
 Release:        1%{?dist}
 Summary:        Istio Proxy
 License:        ASL 2.0
@@ -152,6 +152,8 @@ bazel test \
 /usr/local/bin/envoy
 
 %changelog
+* Fri Oct 30 2020 Brian Avery <bavery@redhat.com> - 2.0.0-1
+- Bump to 2.0
 * Wed Jun 10 2020 Jonh Wendell <jwendell@redhat.com> - 1.2.0-1
 - Simplify build system
 - Bump to 1.2
