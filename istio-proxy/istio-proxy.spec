@@ -19,8 +19,8 @@
 # https://github.com/maistra/proxy
 %global provider        github
 %global provider_tld    com
-%global project         brian-avery
-%global repo            proxy-1
+%global project         maistra
+%global repo            proxy
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 # Use /usr/local as base dir, once upstream heavily depends on that
