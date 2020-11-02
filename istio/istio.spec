@@ -405,14 +405,12 @@ touch ${ENVOY}
 OUTDIR=$(pwd)/out/linux_$GOARCH/release
 pushd src/istio.io/istio
 
-pwd
-ls
 BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" \
 ISTIO_ENVOY_LINUX_DEBUG_PATH=${ENVOY} ISTIO_ENVOY_LINUX_RELEASE_PATH=${ENVOY} \
 make build
 
 %if 0%{?with_test_binaries}
-GOBUILDFLAGS="-mod=vendor" make test-bins
+BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make test-bins
 %endif
 
 %if 0%{?with_tests}
@@ -433,7 +431,7 @@ cd ISTIO
 export GOPATH=$(pwd):${GOPATH}
 export GOBUILDFLAGS="-mod=vendor"
 pushd src/istio.io/istio
-make test
+BUILD_WITH_CONTAINER=0 make test
 popd
 %endif
 
@@ -494,11 +492,10 @@ cp -pav ISTIO/out/linux_$GOARCH/release/{pilot-test-server,pilot-test-client,pil
 
 %if 0%{?with_tests}
 
-%check
 cd ISTIO
 pushd src/istio.io/istio
-GOBUILDFLAGS="-mod=vendor" make localTestEnv test
-GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
+BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make localTestEnv test
+BUILD_WITH_CONTAINER=0 GOBUILDFLAGS="-mod=vendor" make localTestEnvCleanup
 popd
 
 %endif
