@@ -21,7 +21,7 @@ URL:            https://prometheus.io/
 BuildRequires:  prometheus-promu = 0.5.0
 BuildRequires:  golang >= 1.13
 
-Source0:        https://github.com/maistra/prometheus/archive/%{git_commit}/%{repo}-%{git_commit}.tar.gz
+Source0:        https://github.com/maistra/prometheus/archive/%{git_commit}/%{git_commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
