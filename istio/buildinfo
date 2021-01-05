@@ -1,5 +1,4 @@
-istio.io/pkg/version.buildVersion=1.1.1
-istio.io/pkg/version.buildGitRevision=71086a8174a655243ac091a592323f19a88ef1b2
-istio.io/pkg/version.buildUser=redhat
-istio.io/pkg/version.buildHost=redhat
+istio.io/pkg/version.buildVersion=2.0.0
+istio.io/pkg/version.buildGitRevision=e7fb8d5b3ef08aa161073ace01748f158f09690d
+istio.io/pkg/version.buildTag=2.0.0
 istio.io/pkg/version.buildStatus=Clean

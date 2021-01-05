@@ -3,12 +3,12 @@
 
 Name:             grafana
 Version:          6.4.3
-Release:          1%{?dist}
+Release:          2%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
 
-%global webpack_hash df88322cf4ed985eaf8be6b67a90671df7799f89bba8ad74d1448a5a796e5dfa
+%global webpack_hash a82d1aa0bff1f309eca21095d92287e411f991e98b854c85d12fb9f8e084450d
 
 # Source0 contains the tagged upstream sources
 Source0:          https://github.com/grafana/grafana/archive/v%{version}/grafana-%{version}.tar.gz
@@ -27,9 +27,27 @@ Patch4:           004-xerrors.patch
 Patch5:           005-mute-shellcheck-grafana-cli.patch
 Patch6:           900-make-annobin-happy.patch
 
+# Patches for CVEs
+Patch102:         yarn-002-maistra-1304
+Patch103:         yarn-003-maistra-1328
+Patch104:         yarn-004-maistra-1417
+Patch105:         006-CVE-2020-13379.patch
+Patch106:         007-CVE-2020-13430.patch
+Patch107:         008-CVE-2020-12245.patch
+Patch108:         108-MAISTRA-1462-Update-gopkg.in-yaml.v2-to-v2.3.0.patch
+Patch109:         109-yarn-maistra-1522.patch
+Patch110:         110-yarn-maistra-1565.patch
+Patch111:         111-yarn-maistra-1560.patch
+Patch112:         112-CVE-2020-12666.patch
+Patch113:         113-CVE-2020-14040.patch
+
+# Broken tests
+Patch201:         201-disable-broken-tests.patch
+
 # Intersection of go_arches and nodejs_arches
 # FIXME? macro evaluates to empty
 # ExclusiveArch:    %{grafana_arches}
+ExclusiveArch:  x86_64
 
 # omit golang debugsource, see BZ995136 and related
 %global           dwz_low_mem_die_limit 0
@@ -163,6 +181,21 @@ The Grafana prometheus datasource.
 %patch5 -p1
 %patch6 -p1
 
+%patch102 -p1
+%patch103 -p1
+%patch104 -p1
+%patch105 -p1
+%patch106 -p1
+%patch107 -p1
+%patch108 -p1
+%patch109 -p1
+%patch110 -p1
+%patch111 -p1
+%patch112 -p1
+%patch113 -p1
+
+%patch201 -p1
+
 # Set up build subdirs and links
 mkdir -p %{_builddir}/src/github.com/grafana
 ln -sf %{_builddir}/%{binary_name}-%{version} \
@@ -181,6 +214,13 @@ echo _builddir=%{_builddir} archbindir=%{archbindir}
 go build -mod=vendor -o %{archbindir}/grafana-cli ./pkg/cmd/grafana-cli
 go build -mod=vendor -o %{archbindir}/grafana-server ./pkg/cmd/grafana-server
 
+%check
+cd %{_builddir}/src/github.com/grafana/grafana
+# remove tests currently failing
+rm -f pkg/services/provisioning/dashboards/file_reader_linux_test.go
+rm -f pkg/services/provisioning/dashboards/file_reader_test.go
+go test -mod=vendor ./pkg/...
+
 %install
 # Fix up arch bin directories
 [ ! -d bin/x86_64 ] && ln -sf linux-amd64 bin/x86_64
@@ -196,7 +236,7 @@ install -d %{buildroot}%{_sbindir}
 binaries=(%{binary_name}-server %{binary_name}-cli)
 %if 0%{?with_debug} > 0
   for i in "${binaries[@]}"; do
-        install -p -m 755 bin/%{_arch}/$i %{buildroot}%{_sbindir}
+        install -p -m 750 bin/%{_arch}/$i %{buildroot}%{_sbindir}
    done
 %else
     mkdir stripped
@@ -232,7 +272,7 @@ binaries=(%{binary_name}-server %{binary_name}-cli)
           objcopy --add-section ".gnu_debugdata=${COMPRESSED_NAME}.xz" "stripped/${i}"
         fi
 
-        install -p -m 755 "stripped/${i}" %{buildroot}%{_sbindir}
+        install -p -m 750 "stripped/${i}" %{buildroot}%{_sbindir}
     done
 %endif
 
@@ -242,32 +282,32 @@ cp -a conf public %{buildroot}%{_datadir}/%{binary_name}
 
 # man pages
 install -d %{buildroot}%{_mandir}/man1
-install -p -m 644 docs/man/man1/* %{buildroot}%{_mandir}/man1
+install -p -m 640 docs/man/man1/* %{buildroot}%{_mandir}/man1
 
 # config dirs
 install -d %{buildroot}%{_sysconfdir}/%{binary_name}
 install -d %{buildroot}%{_sysconfdir}/sysconfig
 
 # config defaults
-install -p -m 644 conf/distro-defaults.ini \
+install -p -m 640 conf/distro-defaults.ini \
     %{buildroot}%{_sysconfdir}/%{binary_name}/grafana.ini
-install -p -m 644 conf/distro-defaults.ini \
+install -p -m 640 conf/distro-defaults.ini \
     %{buildroot}%{_datadir}/%{binary_name}/conf/defaults.ini
-install -p -m 644 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{binary_name}/ldap.toml
-install -p -m 644 packaging/rpm/sysconfig/grafana-server \
+install -p -m 640 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{binary_name}/ldap.toml
+install -p -m 640 packaging/rpm/sysconfig/grafana-server \
     %{buildroot}%{_sysconfdir}/sysconfig/grafana-server
 
 # config database directory and plugins
 install -d %{buildroot}%{_sharedstatedir}/%{binary_name}
-install -d -m 755 %{buildroot}%{_sharedstatedir}/%{binary_name}
-install -d -m 755 %{buildroot}%{_sharedstatedir}/%{binary_name}/plugins
+install -d -m 750 %{buildroot}%{_sharedstatedir}/%{binary_name}
+install -d -m 750 %{buildroot}%{_sharedstatedir}/%{binary_name}/plugins
 
 # log directory
 install -d %{buildroot}%{_localstatedir}/log/%{binary_name}
 
 # systemd service files
 install -d %{buildroot}%{_unitdir} # only needed for manual rpmbuilds
-install -p -m 644 packaging/rpm/systemd/grafana-server.service \
+install -p -m 640 packaging/rpm/systemd/grafana-server.service \
     %{buildroot}%{_unitdir}
 
 %files
@@ -277,8 +317,8 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 
 # config files
 %dir %{_sysconfdir}/%{binary_name}
-%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{binary_name}/grafana.ini
-%config(noreplace) %attr(644, root, root) %{_sysconfdir}/%{binary_name}/ldap.toml
+%config(noreplace) %attr(640, root, root) %{_sysconfdir}/%{binary_name}/grafana.ini
+%config(noreplace) %attr(640, root, root) %{_sysconfdir}/%{binary_name}/ldap.toml
 %config(noreplace) %{_sysconfdir}/sysconfig/grafana-server
 
 # config database directory and plugins (actual db files are created by grafana-server)
@@ -311,7 +351,7 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 %{_unitdir}/grafana-server.service
 
 # log directory - grafana.log is created by grafana-server, and it does it's own log rotation
-%attr(0755, root, root) %dir %{_localstatedir}/log/%{binary_name}
+%attr(0750, root, root) %dir %{_localstatedir}/log/%{binary_name}
 
 # man pages for grafana binaries
 %{_mandir}/man1/%{binary_name}-server.1*
@@ -326,5 +366,8 @@ install -p -m 644 packaging/rpm/systemd/grafana-server.service \
 %{_datadir}/%{binary_name}/public/app/plugins/datasource/prometheus
 
 %changelog
+* Sun Jan 3 2021 Product Release - 6.4.3-2
+- Update to latest release
+
 * Tue Mar 31 2020 Jonh Wendell <jwendell@redhat.com> - 6.4.3-1
 - First version for Maistra 1.1

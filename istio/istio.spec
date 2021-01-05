@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 71086a8174a655243ac091a592323f19a88ef1b2
+%global git_commit e7fb8d5b3ef08aa161073ace01748f158f09690d
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -28,7 +28,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        2.0.0
+Version:        2.0.1
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -386,7 +386,6 @@ cp %{SOURCE1} ISTIO/src/istio.io/istio/.istiorc.mk
 sed "s|istio.io/pkg/version\.buildVersion=.*|istio.io/pkg/version.buildVersion=Maistra_%{version}|" %{SOURCE2} > ISTIO/src/istio.io/istio/buildinfo
 
 %build
-set -x
 cd ISTIO
 
 export GOPROXY=off
@@ -558,6 +557,9 @@ popd
 %endif
 
 %changelog
+* Sun Jan 3 2021 Product Release - 2.0.1-1
+- Update to latest release
+
 * Fri Oct 30 2020 Brian Avery <bavery@redhat.com> - 2.0.0-1
 - Release of 2.0.0-1
 

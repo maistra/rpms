@@ -1,16 +1,11 @@
-From 6228d7f09f0486d2ee7cfca0691fb87b18c7183f Mon Sep 17 00:00:00 2001
-From: Brian Avery <bavery@redhat.com>
-Date: Mon, 20 Jul 2020 14:16:54 -0400
+From ae629e304a6f67d6599448e4d1816b48b0c2a77b Mon Sep 17 00:00:00 2001
+From: Kevin Conner <kconner@redhat.com>
+Date: Thu, 26 Nov 2020 08:42:41 -0800
 Subject: [PATCH] Disable wasm download until we're ready for it
 
----
- bin/init.sh                     | 14 +++++++-------
- pilot/docker/Dockerfile.proxyv2 |  6 +++---
- tools/istio-docker.mk           |  8 ++++----
- 3 files changed, 14 insertions(+), 14 deletions(-)
 
 diff --git a/bin/init.sh b/bin/init.sh
-index 8dfe0e4da..e26dc3f0c 100755
+index 8dfe0e4da5..e26dc3f0ca 100755
 --- a/bin/init.sh
 +++ b/bin/init.sh
 @@ -208,13 +208,13 @@ else
@@ -35,19 +30,10 @@ index 8dfe0e4da..e26dc3f0c 100755
  # Copy native envoy binary to ISTIO_OUT
  echo "Copying ${ISTIO_ENVOY_NATIVE_PATH} to ${ISTIO_OUT}/envoy"
 diff --git a/pilot/docker/Dockerfile.proxyv2 b/pilot/docker/Dockerfile.proxyv2
-index b459df9b3..c6ee9ae70 100644
+index b91ef78c1c..e019f26b95 100644
 --- a/pilot/docker/Dockerfile.proxyv2
 +++ b/pilot/docker/Dockerfile.proxyv2
-@@ -38,7 +38,7 @@ ARG istio_version
- # Install Envoy.
- COPY envoy /usr/local/bin/envoy
- 
--# Environment variable indicating the exact proxy sha - for debugging or version-specific configs 
-+# Environment variable indicating the exact proxy sha - for debugging or version-specific configs
- ENV ISTIO_META_ISTIO_PROXY_SHA $proxy_version
- # Environment variable indicating the exact build, for debugging
- ENV ISTIO_META_ISTIO_VERSION $istio_version
-@@ -47,8 +47,8 @@ COPY pilot-agent /usr/local/bin/pilot-agent
+@@ -32,8 +32,8 @@ COPY pilot-agent /usr/local/bin/pilot-agent
  
  COPY envoy_policy.yaml.tmpl /var/lib/istio/envoy/envoy_policy.yaml.tmpl
  
@@ -59,7 +45,7 @@ index b459df9b3..c6ee9ae70 100644
  # The pilot-agent will bootstrap Envoy.
  ENTRYPOINT ["/usr/local/bin/pilot-agent"]
 diff --git a/tools/istio-docker.mk b/tools/istio-docker.mk
-index c2af2ac3e..f66b0fe5e 100644
+index 35368cf42e..f1b729529f 100644
 --- a/tools/istio-docker.mk
 +++ b/tools/istio-docker.mk
 @@ -71,8 +71,8 @@ ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR}/envoy_bootstrap_v2.json: ${ISTIO_ENVOY_BOOTS
@@ -83,7 +69,4 @@ index c2af2ac3e..f66b0fe5e 100644
 +#docker.proxyv2: $(ISTIO_ENVOY_LINUX_RELEASE_DIR)/metadata-exchange-filter.wasm
  	$(DOCKER_RULE)
  
- docker.pilot: BUILD_PRE=&& chmod 755 pilot-discovery cacert.pem
--- 
-2.27.0
-
+ docker.pilot: BUILD_PRE=&& chmod 755 pilot-discovery
