@@ -1,0 +1,19 @@
+From b42e9f1ca85779a6a6becd4bf12efbe042566acb Mon Sep 17 00:00:00 2001
+From: Kevin Conner <kconner@redhat.com>
+Date: Mon, 14 Dec 2020 13:48:37 -0800
+Subject: [PATCH] Disable SniTooLarge test
+
+
+diff --git a/src/envoy/tcp/sni_verifier/sni_verifier_test.cc b/src/envoy/tcp/sni_verifier/sni_verifier_test.cc
+index 5de82ab75..f1b03ca24 100644
+--- a/src/envoy/tcp/sni_verifier/sni_verifier_test.cc
++++ b/src/envoy/tcp/sni_verifier/sni_verifier_test.cc
+@@ -193,7 +193,7 @@ TEST_P(SniVerifierFilterTest, BothSnisEmpty) {
+   EXPECT_EQ(0, cfg_->stats().snis_do_not_match_.value());
+ }
+ 
+-TEST_P(SniVerifierFilterTest, SniTooLarge) {
++TEST_P(SniVerifierFilterTest, DISABLED_SniTooLarge) {
+   runTestForClientHello(std::get<0>(GetParam()), std::get<1>(GetParam()),
+       // Inner sni hostname length is such that the total length of clienthello exceeds the TLS_MAX_CLIENT_HELLO bytes
+                         "example.com", std::string(252, 'a'),
