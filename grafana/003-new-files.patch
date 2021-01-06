@@ -1,5 +1,5 @@
 diff --git a/conf/distro-defaults.ini b/conf/distro-defaults.ini
-new file mode 100644
+new file mode 100640
 index 0000000000..e337ba0b57
 --- /dev/null
 +++ b/conf/distro-defaults.ini
@@ -1396,45 +1396,45 @@ index 0000000000..fb9200cb62
 +cp -a conf public %{buildroot}%{_datadir}/%{name}
 +
 +# wrappers
-+install -p -m 755 packaging/wrappers/grafana-cli %{buildroot}%{_sbindir}/%{name}-cli
++install -p -m 750 packaging/wrappers/grafana-cli %{buildroot}%{_sbindir}/%{name}-cli
 +
 +# binaries
-+install -p -m 755 %{archbindir}/%{name}-server %{buildroot}%{_sbindir}
-+install -p -m 755 %{archbindir}/%{name}-cli %{buildroot}%{_datadir}/%{name}/bin
++install -p -m 750 %{archbindir}/%{name}-server %{buildroot}%{_sbindir}
++install -p -m 750 %{archbindir}/%{name}-cli %{buildroot}%{_datadir}/%{name}/bin
 +
 +# man pages
 +install -d %{buildroot}%{_mandir}/man1
-+install -p -m 644 docs/man/man1/* %{buildroot}%{_mandir}/man1
++install -p -m 640 docs/man/man1/* %{buildroot}%{_mandir}/man1
 +
 +# config dirs
 +install -d %{buildroot}%{_sysconfdir}/%{name}
 +install -d %{buildroot}%{_sysconfdir}/sysconfig
 +
 +# config defaults
-+install -p -m 644 conf/distro-defaults.ini \
++install -p -m 640 conf/distro-defaults.ini \
 +    %{buildroot}%{_sysconfdir}/%{name}/grafana.ini
-+install -p -m 644 conf/distro-defaults.ini \
++install -p -m 640 conf/distro-defaults.ini \
 +    %{buildroot}%{_datadir}/%{name}/conf/defaults.ini
-+install -p -m 644 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{name}/ldap.toml
-+install -p -m 644 packaging/rpm/sysconfig/grafana-server \
++install -p -m 640 conf/ldap.toml %{buildroot}%{_sysconfdir}/%{name}/ldap.toml
++install -p -m 640 packaging/rpm/sysconfig/grafana-server \
 +    %{buildroot}%{_sysconfdir}/sysconfig/grafana-server
 +
 +# config database directory and plugins
 +install -d %{buildroot}%{_sharedstatedir}/%{name}
-+install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}
-+install -d -m 755 %{buildroot}%{_sharedstatedir}/%{name}/plugins
++install -d -m 750 %{buildroot}%{_sharedstatedir}/%{name}
++install -d -m 750 %{buildroot}%{_sharedstatedir}/%{name}/plugins
 +
 +# log directory
 +install -d %{buildroot}%{_localstatedir}/log/%{name}
 +
 +# systemd service files
 +install -d %{buildroot}%{_unitdir} # only needed for manual rpmbuilds
-+install -p -m 644 packaging/rpm/systemd/grafana-server.service \
++install -p -m 640 packaging/rpm/systemd/grafana-server.service \
 +    %{buildroot}%{_unitdir}
 +
 +# daemon run pid file config for using tmpfs
 +install -d %{buildroot}%{_tmpfilesdir}
-+echo "d %{_rundir}/%{name} 0755 %{GRAFANA_USER} %{GRAFANA_GROUP} -" \
++echo "d %{_rundir}/%{name} 0750 %{GRAFANA_USER} %{GRAFANA_GROUP} -" \
 +    > %{buildroot}%{_tmpfilesdir}/%{name}.conf
 +
 +%pre
@@ -1473,8 +1473,8 @@ index 0000000000..fb9200cb62
 +
 +# config files
 +%dir %{_sysconfdir}/%{name}
-+%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/grafana.ini
-+%config(noreplace) %attr(644, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/ldap.toml
++%config(noreplace) %attr(640, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/grafana.ini
++%config(noreplace) %attr(640, root, %{GRAFANA_GROUP}) %{_sysconfdir}/%{name}/ldap.toml
 +%config(noreplace) %{_sysconfdir}/sysconfig/grafana-server
 +
 +# Grafana configuration to dynamically create /run/grafana/grafana.pid on tmpfs
@@ -1510,7 +1510,7 @@ index 0000000000..fb9200cb62
 +%{_unitdir}/grafana-server.service
 +
 +# log directory - grafana.log is created by grafana-server, and it does it's own log rotation
-+%attr(0755, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_localstatedir}/log/%{name}
++%attr(0750, %{GRAFANA_USER}, %{GRAFANA_GROUP}) %dir %{_localstatedir}/log/%{name}
 +
 +# man pages for grafana binaries
 +%{_mandir}/man1/%{name}-server.1*
