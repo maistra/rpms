@@ -3,7 +3,7 @@
 # Build with debug info rpm
 %global with_debug 0
 # Run unit tests
-%global with_tests 1
+%global with_tests 0
 # Build test binaries
 %global with_test_binaries 0
 
@@ -13,10 +13,10 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 583ceb1f85492f5766f90ee51a380ee736e9fc9b
+%global git_commit a405165e3e09e57217b53846454db913cd493d10
 %global shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 %global gn_commit 743970903a39f4122a6476f9e05f59b9af03fdf6
-%global gn_hash f64a9dbbc3eb1954aaa3bd49e857abfb
+%global gn_hash 259564bf3c706413a7cdadf4c8cd6a49
 
 # https://github.com/maistra/proxy
 %global provider        github
@@ -29,7 +29,7 @@
 %global _prefix /usr/local
 
 Name:           istio-proxy
-Version:        1.1.10
+Version:        1.1.11
 Release:        1%{?dist}
 Summary:        Istio Proxy
 License:        ASL 2.0
@@ -56,6 +56,7 @@ Source0:        proxy-%{git_commit}.tar.gz
 Source10:       gn-%{gn_hash}.tar.gz
 Patch0:         0001-Preserve-LWS-from-the-middle-of-HTTP1-header-values.patch
 Patch10:        0002-http-header-map-security-fixes-for-duplicate-headers.patch
+Patch1000:      1000-disable-sni-too-large-test.patch
 
 ExclusiveArch:  x86_64
 
@@ -69,6 +70,7 @@ pushd maistra/vendor/envoy
 %patch0 -p1
 %patch10 -p1
 popd
+%patch1000 -p1
 
 %build
 # BEGIN GN FIXME: Move GN to its own package?
@@ -179,6 +181,9 @@ bazel test \
 /usr/local/bin/envoy
 
 %changelog
+* Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 1.1.11-1
+- Release of 1.1.11-1
+
 * Thu Oct 29 2020 Kevin Conner <kconner@redhat.com> - 1.1.10-1
 - Release of 1.1.10-1
 
