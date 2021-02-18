@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 22a0043ee2d088da073fed687bff631fd660fb40
+%global git_commit 0a738cf46160e383d336a7f291bf4c2ebf5442da
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -31,7 +31,7 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        2.0.1
+Version:        2.0.2
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
@@ -74,6 +74,8 @@ popd
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 pushd OPERATOR/src/github.com/maistra/istio-operator/tmp/_output/bin/
+
+./istio-operator --version
 
 %if 0%{?with_debug}
     cp -pav istio-operator $RPM_BUILD_ROOT%{_bindir}/
@@ -132,6 +134,9 @@ popd
 /manifests
 
 %changelog
+* Wed Feb 17 2021 Kevin Conner <kconner@redhat.com> - 2.0.2-1
+- Update for 2.0.2 release
+
 * Sun Jan 3 2021 Product Release - 2.0.1-1
 - Update to latest release
 
