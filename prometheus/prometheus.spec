@@ -12,7 +12,7 @@
 
 Name:           prometheus
 Version:        2.14.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        An open-source systems monitoring and alerting toolkit
 License:        ASL 2.0
 URL:            https://prometheus.io/
@@ -122,6 +122,9 @@ cp -a documentation/examples/prometheus.yml $RPM_BUILD_ROOT%{_sysconfdir}/%{bina
 %config(noreplace) %{_sysconfdir}/%{binary_name}/%{binary_name}.yml
 
 %changelog
+* Thu Feb 18 2021 Kevin Conner <kconner@redhat.com> - 2.14.0-4
+- Update for 1.1.12 release
+
 * Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 2.14.0-3
 - Release of 2.14.0-3
 

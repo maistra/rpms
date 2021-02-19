@@ -13,7 +13,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 53fb76916f31aa32b876821ad34de7d6be106e36
+%global git_commit e498a7c3ab16e248dc2a3eb176852c3f1039bf5a
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -31,7 +31,7 @@
 %global _prefix /usr/local
 
 Name:           istio-operator
-Version:        1.1.11
+Version:        1.1.12
 Release:        1%{?dist}
 Summary:        A Kubernetes operator to manage Istio.
 License:        ASL 2.0
@@ -137,6 +137,9 @@ popd
 /manifests
 
 %changelog
+* Thu Feb 18 2021 Kevin Conner <kconner@redhat.com> - 1.1.12-1
+- Update for 1.1.12 release
+
 * Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 1.1.11-1
 - Release of 1.1.11-1
 

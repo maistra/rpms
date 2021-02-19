@@ -1,6 +1,6 @@
 %undefine _missing_build_ids_terminate_build
 
-%global git_commit 8165e6eec9f13570a744e8237193b68d2864b135
+%global git_commit 7b324af35cb1a1cde3032a3bcf4041fa2e90bce2
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -13,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           ior
-Version:        1.1.11
+Version:        1.1.12
 Release:        1%{?dist}
 Summary:        Istio + OpenShift Routing
 License:        ASL 2.0
@@ -87,6 +87,9 @@ cd IOR/src/%{provider_prefix}
 %{_bindir}/ior
 
 %changelog
+* Thu Feb 18 2021 Kevin Conner <kconner@redhat.com> - 1.1.12-1
+- Update for 1.1.12 release
+
 * Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 1.1.11-1
 - Release of 1.1.11-1
 
