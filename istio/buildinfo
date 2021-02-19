@@ -1,4 +1,4 @@
-istio.io/pkg/version.buildVersion=2.0.0
-istio.io/pkg/version.buildGitRevision=e7fb8d5b3ef08aa161073ace01748f158f09690d
-istio.io/pkg/version.buildTag=2.0.0
+istio.io/pkg/version.buildVersion=2.0.2
+istio.io/pkg/version.buildGitRevision=6438833270378d9d71d23a495e4894f0ef588af2
+istio.io/pkg/version.buildTag=2.0.2
 istio.io/pkg/version.buildStatus=Clean

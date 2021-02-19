@@ -1,5 +1,6 @@
 %undefine _missing_build_ids_terminate_build
-%global git_commit ed48212610a0b7c8a037c1c8245cb84bcdb9aed1
+
+%global git_commit 6fff715c61d2dfab1fd936e1cfef39b6bdce8a68
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -12,7 +13,7 @@
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 
 Name:           istio-cni
-Version:        2.0.1
+Version:        2.0.2
 Release:        1%{?dist}
 Summary:        Istio CNI Plugin
 License:        ASL 2.0
@@ -101,6 +102,9 @@ install -p -m 755 deployments/kubernetes/install/scripts/istio-cni.conf.default 
 
 
 %changelog
+* Wed Feb 17 2021 Kevin Conner <kconner@redhat.com> - 2.0.2-1
+- Update for 2.0.2 release
+
 * Sun Jan 3 2021 Product Release - 2.0.1-1
 - Update to latest release
 
