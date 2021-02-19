@@ -3,12 +3,12 @@
 
 Name:             grafana
 Version:          6.4.3
-Release:          3%{?dist}
+Release:          4%{?dist}
 Summary:          Metrics dashboard and graph editor
 License:          ASL 2.0
 URL:              https://grafana.org
 
-%global webpack_hash c25609c3708cd047b8c7c264093e01aa8a44d0a53a17fdd199ae2c144a52b7e4
+%global webpack_hash 11fe0740defec0f9a8de85fa607e58a7476dbda68f4b809bdd7f04fceadc3606
 
 # Source0 contains the tagged upstream sources
 Source0:          https://github.com/grafana/grafana/archive/v%{version}/grafana-%{version}.tar.gz
@@ -366,6 +366,9 @@ install -p -m 640 packaging/rpm/systemd/grafana-server.service \
 %{_datadir}/%{binary_name}/public/app/plugins/datasource/prometheus
 
 %changelog
+* Thu Feb 18 2021 Kevin Conner <kconner@redhat.com> - 6.4.3-4
+- Update for 1.1.12 release
+
 * Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 6.4.3-3
 - Updated for 1.1.11
 

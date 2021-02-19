@@ -15,7 +15,7 @@
 %global debug_package   %{nil}
 %endif
 
-%global git_commit 7d3618ce62aed95e4d1d064af6d237d3311aff30
+%global git_commit 687d6d59e647344002dc4fb66e7c553d564d3ac0
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
@@ -30,7 +30,7 @@
 %global _prefix /usr/local
 
 Name:           istio
-Version:        1.1.11
+Version:        1.1.12
 Release:        1%{?dist}
 Summary:        An open platform to connect, manage, and secure microservices
 License:        ASL 2.0
@@ -563,6 +563,9 @@ popd
 %endif
 
 %changelog
+* Thu Feb 18 2021 Kevin Conner <kconner@redhat.com> - 1.1.12-1
+- Update for 1.1.12 release
+
 * Tue Jan 5 2021 Kevin Conner <kconner@redhat.com> - 1.1.11-1
 - Release of 1.1.11-1
 
