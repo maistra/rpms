@@ -1,6 +1,6 @@
 Name:           bazel
-Version:        2.2.0
-Release:        1%{?dist}
+Version:        3.7.2
+Release:        0%{?dist}
 Summary:        Correct, reproducible, and fast builds for everyone.
 License:        Apache License 2.0
 URL:            https://www.bazel.build/
@@ -49,5 +49,5 @@ rm -rf %{buildroot}
 
 
 %changelog
-* Wed Jun 10 2020 Jonh Wendell <jwendell@redhat.com> - 2.2.0-1
-- Bump to 2.2.0
+* Tue Nov 2 2021 Jonh Wendell <jwendell@redhat.com> - 3.7.2-0
+- Initial build for maistra 2.1

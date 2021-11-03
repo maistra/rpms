@@ -1,0 +1,16 @@
+addFilter("E: non-readable /etc/grafana/grafana.ini 640")
+addFilter("E: non-readable /etc/grafana/ldap.toml 640")
+addFilter("E: non-standard-dir-perm /var/lib/grafana 750")
+addFilter("E: non-standard-dir-perm /etc/grafana/provisioning/datasources 750")
+addFilter("E: zero-length /usr/share/grafana/public/.*")
+addFilter("E: script-without-shebang .*\.json")
+
+addFilter("W: non-standard-uid.* grafana")
+addFilter("W: non-standard-gid.* grafana")
+addFilter("W: hidden-file-or-dir /usr/share/grafana/public/.*")
+addFilter("W: log-files-without-logrotate .*")
+addFilter("W: dangerous-command-in-%post chown")
+
+addFilter("W: strange-permission build_frontend.sh 755")
+addFilter("W: strange-permission list_bundled_nodejs_packages.py 755")
+addFilter("W: %ifarch-applied-patch Patch.: 00.-skip-x86-goldenfiles-tests.patch")

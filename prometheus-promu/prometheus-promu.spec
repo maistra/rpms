@@ -1,24 +1,23 @@
-Name:           prometheus-promu
-Version:        0.5.0
-Release:        1%{?dist}
-Summary:        Prometheus Utility Tool 
+Name:           istio-prometheus-promu
+Version:        0.7.0
+Release:        0%{?dist}
+Summary:        Prometheus Utility Tool
 License:        ASL 2.0
 URL:            https://github.com/prometheus/promu
 
 Source0:        https://github.com/prometheus/promu/archive/v%{version}.tar.gz
 
-# e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm}}
+ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 s390x ppc64le aarch64 %{arm}}
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires:  golang >= 1.12
 
 %description
 Promu is part of Prometheus component Builds toolchain.
 
-%package prometheus-promu
+%package istio-prometheus-promu
 Summary:  Prometheus Utility Tool
 
-%description prometheus-promu
+%description istio-prometheus-promu
 Package containing prometheus utility tool files.
 
 %prep
@@ -29,10 +28,9 @@ tar zxf %{SOURCE0} -C PROMU/src/github.com/prometheus/promu --strip=1
 
 %build
 cd PROMU
-export GOPATH=$(pwd):%{gopath}
 
 cd src/github.com/prometheus/promu
-GO111MODULE=on go build -mod=vendor
+go build -mod=vendor
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -54,8 +52,5 @@ cp -pav stripped/promu "${RPM_BUILD_ROOT}%{_bindir}/"
 %{_bindir}/promu
 
 %changelog
-* Tue Jan 28 2020 Daniel Grimm <dgrimm@redhat.com> - 0.5.0-1
-- Update to latest release
-
-* Wed Jun 20 2019 Dmitri Dolguikh <ddolguik@redhat.com> - 0.2.0-1
-- First build
+* Wed Nov 3 2021 Jonh Wendell <jwendell@redhat.com> - 0.7.0-0
+- Initial build for maistra 2.1.0

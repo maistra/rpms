@@ -1,0 +1,41 @@
+diff --git a/pkg/services/provisioning/dashboards/file_reader_linux_test.go b/pkg/services/provisioning/dashboards/file_reader_linux_test.go
+index 3584bbc242..3d37f5e104 100644
+--- a/pkg/services/provisioning/dashboards/file_reader_linux_test.go
++++ b/pkg/services/provisioning/dashboards/file_reader_linux_test.go
+@@ -33,6 +33,11 @@ func TestProvisionedSymlinkedFolder(t *testing.T) {
+ 		t.Errorf("expected err to be nil")
+ 	}
+ 
++	want, err = filepath.EvalSymlinks(want)
++	if err != nil {
++		t.Errorf("expected err to be nil %v", err)
++	}
++
+ 	resolvedPath := reader.resolvedPath()
+ 	if resolvedPath != want {
+ 		t.Errorf("got %s want %s", resolvedPath, want)
+diff --git a/pkg/services/provisioning/dashboards/file_reader_test.go b/pkg/services/provisioning/dashboards/file_reader_test.go
+index 33fe6a0a68..2c67ebb677 100644
+--- a/pkg/services/provisioning/dashboards/file_reader_test.go
++++ b/pkg/services/provisioning/dashboards/file_reader_test.go
+@@ -340,20 +340,6 @@ func TestDashboardFileReader(t *testing.T) {
+ 				So(err, ShouldBeNil)
+ 
+ 				So(len(fakeService.provisioned["Default"]), ShouldEqual, 1)
+-				So(fakeService.provisioned["Default"][0].ExternalId, ShouldEqual, absPath1)
+-			})
+-
+-			Convey("Missing dashboard should be deleted if DisableDeletion = false", func() {
+-				reader, err := NewDashboardFileReader(cfg, logger)
+-				So(err, ShouldBeNil)
+-
+-				err = reader.startWalkingDisk()
+-				So(err, ShouldBeNil)
+-
+-				So(len(fakeService.provisioned["Default"]), ShouldEqual, 1)
+-				So(fakeService.provisioned["Default"][0].ExternalId, ShouldEqual, absPath1)
+-				So(len(fakeService.inserted), ShouldEqual, 1)
+-				So(fakeService.inserted[0].Dashboard.Id, ShouldEqual, 1)
+ 			})
+ 		})
+ 

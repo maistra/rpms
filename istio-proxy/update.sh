@@ -7,14 +7,14 @@ set -u
 PROXY_NAME=istio-proxy
 
 function usage() {
-    echo "Usage: $0 [-i <SHA of proxy>]"
+    echo "Usage: $0 [-p <SHA of proxy>]"
     echo
     exit 0
 }
 
-while getopts ":i:" opt; do
+while getopts ":p:" opt; do
   case ${opt} in
-    i) SHA="${OPTARG}";;
+    p) SHA="${OPTARG}";;
     *) usage;;
   esac
 done
@@ -22,12 +22,14 @@ done
 SHA=${SHA:-"$(grep '%global git_commit ' ${PROXY_NAME}.spec | cut -d' ' -f3)"}
 
 function update_commit() {
-    local sha="$1"
+    local name="$1"
+    local commit="$2"
+    local sha="$3"
+    local tarball="$4"
 
-    local tarball="https://github.com/maistra/proxy/archive/${sha}/proxy-${sha}.tar.gz"
-    local filename="proxy-${sha}.tar.gz"
+    local filename="$(echo $tarball | sed -s 's+^.*/++')"
 
-    echo -n "Checking proxy...   "
+    echo -n "Checking ${name}...   "
     if [ ! -f "${filename}" ]; then
         echo "Downloading ${tarball}"
         if ! curl -Lfs "${tarball}" -o "${filename}"; then
@@ -38,8 +40,8 @@ function update_commit() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" "${PROXY_NAME}.spec"
-	md5sum "${filename}" > sources
+    sed -i "s/%global ${commit} .*/%global ${commit} ${sha}/" "${PROXY_NAME}.spec"
 }
 
-update_commit "${SHA}"
+update_commit "proxy" "git_commit" "${SHA}" "https://github.com/maistra/proxy/archive/${SHA}/proxy-${SHA}.tar.gz"
+sha512sum --tag "proxy-${SHA}.tar.gz" > sources

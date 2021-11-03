@@ -4,7 +4,10 @@ set -o pipefail
 set -e
 set -u
 
+DIR=$(cd $(dirname $0) ; pwd -P)
 NEW_SOURCES=""
+
+source "${DIR}/container_cli_init.sh"
 
 function usage() {
   echo "Usage: $0 [-v <grafana version>]"
@@ -19,29 +22,19 @@ while getopts ":v:" opt; do
   esac
 done
 
-function gitignore() {
-  local ignored=$1
-  if [ -z "$(egrep '^$ignored$' .gitignore)" ] ; then
-    echo "$ignored" >> .gitignore
-  fi
-}
+GRAFANA_VERSION=${GRAFANA_VERSION:-"$(egrep '^Version:' istio-grafana.spec | awk '{print $2}')"}
 
-GRAFANA_VERSION=${GRAFANA_VERSION:-"$(egrep '^Version:' grafana.spec | awk '{print $2}')"}
+sed -i -e '/^Version: / s+[0-9][0-9.]*$+'${GRAFANA_VERSION}'+' istio-grafana.spec
 
-sed -i -e '/^Version: / s+[0-9][0-9.]*$+'${GRAFANA_VERSION}'+' grafana.spec
+./run_container_build.sh "${GRAFANA_VERSION}"
 
-./make_grafana_webpack.sh "${GRAFANA_VERSION}"
+${CONTAINER_CLI} run -v$DIR:/grafana --security-opt label=disable grafana-build-7.2.1 make -e VER=${GRAFANA_VERSION} clean all
 
-gitignore "/grafana-${GRAFANA_VERSION}"
-gitignore "/grafana-${GRAFANA_VERSION}.tar.gz"
+SHA=$(sha256sum grafana-webpack-${GRAFANA_VERSION}.tar.gz | sed -e 's+ .*$++')
+mv grafana-webpack-${GRAFANA_VERSION}.tar.gz grafana-webpack-${GRAFANA_VERSION}-${SHA}.tar.gz
+sed -i -e 's+\(^%global *webpack_hash *\)[^ ]*$+\1'${SHA}'+' istio-grafana.spec
 
-SHA=$(sha256sum grafana_webpack-${GRAFANA_VERSION}.tar.gz | sed -e 's+ .*$++')
-mv grafana_webpack-${GRAFANA_VERSION}.tar.gz grafana_webpack-${GRAFANA_VERSION}.${SHA}.tar.gz
-sed -i -e 's+\(^%global  *webpack_hash  *\)[^ ]*$+\1'${SHA}'+' grafana.spec
-
-gitignore "/grafana_webpack-${GRAFANA_VERSION}.${SHA}.tar.gz"
-
-NEW_SOURCES="grafana_webpack-${GRAFANA_VERSION}.${SHA}.tar.gz grafana-${GRAFANA_VERSION}.tar.gz"
+NEW_SOURCES="grafana-webpack-${GRAFANA_VERSION}-${SHA}.tar.gz grafana-${GRAFANA_VERSION}.tar.gz grafana-vendor-${GRAFANA_VERSION}.tar.xz"
 
 echo "Updating sources file with ${NEW_SOURCES}"
-md5sum ${NEW_SOURCES} > sources
+sha512sum --tag ${NEW_SOURCES} > sources

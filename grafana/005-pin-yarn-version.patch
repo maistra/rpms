@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index f7b94b2b4d..ff9e1fe6e1 100644
+--- a/package.json
++++ b/package.json
+@@ -311,6 +311,7 @@
+     "node": ">=12 <13"
+   },
+   "volta": {
+-    "node": "12.18.3"
++    "node": "12.18.3",
++    "yarn": "1.22.10"
+   }
+ }

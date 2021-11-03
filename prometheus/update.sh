@@ -4,8 +4,6 @@ set -o pipefail
 set -e
 set -u
 
-NEW_SOURCES=""
-
 function usage() {
   echo "Usage: $0 [-i <SHA of prometheus>]"
   echo
@@ -19,7 +17,7 @@ while getopts ":i:" opt; do
   esac
 done
 
-PROMETHEUS_SHA=${PROMETHEUS_SHA:-"$(grep '%global git_commit ' prometheus.spec | cut -d' ' -f3)"}
+PROMETHEUS_SHA=${PROMETHEUS_SHA:-"$(grep '%global git_commit ' istio-prometheus.spec | cut -d' ' -f3)"}
 
 function update_commit() {
     local sha="$1"
@@ -30,8 +28,7 @@ function update_commit() {
     echo -n "Checking prometheus...   "
     if [ ! -f "${filename}" ]; then
         echo "Downloading ${tarball}"
-        curl -Lfs ${tarball} -o "${filename}"
-        if [ $? -ne 0 ]; then
+        if ! curl -Lfs "${tarball}" -o "${filename}"; then
             echo "Error downloading tarball, exiting."
             exit 1
         fi
@@ -39,15 +36,10 @@ function update_commit() {
         echo "Already on disk, download not necessary"
     fi
 
-    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" prometheus.spec
-    NEW_SOURCES="${NEW_SOURCES} ${filename}"
-}
+    sed -i "s/%global git_commit .*/%global git_commit ${sha}/" istio-prometheus.spec
 
-function new_sources() {
-    echo
-    echo "Updating sources file with ${NEW_SOURCES}"
-    md5sum ${NEW_SOURCES} > sources
+    echo "Updating sources file with ${filename}"
+    sha512sum --tag "${filename}" > sources
 }
 
 update_commit "${PROMETHEUS_SHA}"
-new_sources
