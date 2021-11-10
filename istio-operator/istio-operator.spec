@@ -46,7 +46,7 @@ export MINIMUM_SUPPORTED_VERSION=v1.1
 
 export GOPROXY=off
 export CGO_ENABLED=0
-export COMMUNITY=false
+export COMMUNITY=true
 export GO111MODULE=on
 export VERSION=%{version}-%{release}
 export GITREVISION=%{git_shortcommit}
