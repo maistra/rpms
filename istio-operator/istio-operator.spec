@@ -2,7 +2,7 @@
 %global with_tests 0
 %global debug_package %{nil}
 
-%global git_commit e4ce440e6c593372875ed32ebb505942e0595bfa
+%global git_commit d74a7daea5635d00c86968d6620201301b02d4cc
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
 %global provider        github
